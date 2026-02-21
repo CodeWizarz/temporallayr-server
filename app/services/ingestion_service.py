@@ -1,8 +1,11 @@
 import asyncio
+import asyncio
 import logging
 import json
 from typing import Any, Dict, List
 from datetime import datetime, UTC
+
+from app.services.storage_service import StorageService
 
 logger = logging.getLogger("temporallayr.ingestion")
 
@@ -14,6 +17,7 @@ class IngestionService:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._worker_task: asyncio.Task | None = None
         self._is_running = False
+        self._storage = StorageService(max_retries=3, base_delay=1.0)
 
     async def start(self):
         """Start the background ingestion worker."""
@@ -88,8 +92,12 @@ class IngestionService:
                 logger.error(f"Error in background ingestion worker: {e}")
 
     async def _write_batch(self, batch: List[Dict[str, Any]]):
-        """Write a batch of events reliably to secondary storage."""
-        # TODO: Stubbed write integration binding. Hook this against actual GraphStore layer.
-        logger.info(f"Flushing {len(batch)} events downstream to storage...")
-        # Simulating IO latency
-        await asyncio.sleep(0.05)
+        """Write a batch of events reliably to secondary storage through structured backend routing."""
+        logger.info(
+            f"Dispatching {len(batch)} queued events into PostgreSQL storage backend natively..."
+        )
+        success = await self._storage.bulk_insert_events(batch)
+        if not success:
+            logger.error(
+                "Failed persisting batch cleanly via storage backend layer boundaries."
+            )
