@@ -81,3 +81,39 @@ class StorageService:
                 return False
 
         return False
+
+    async def query_events(
+        self,
+        tenant_id: str,
+        limit: int = 100,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute highly structured tenant event scans efficiently leveraging composite API key indexes defensively.
+        """
+        from sqlalchemy import select
+
+        if not async_session_maker:
+            logger.warning("Skipping event query: Uninitialized database engine.")
+            return []
+
+        # Bound explicit scan parameters natively
+        stmt = select(Event.payload).where(Event.api_key == tenant_id)
+
+        if from_time:
+            stmt = stmt.where(Event.timestamp >= from_time)
+        if to_time:
+            stmt = stmt.where(Event.timestamp <= to_time)
+
+        # Force sort mappings mapping chronological extraction optimally gracefully capping
+        stmt = stmt.order_by(Event.timestamp.desc()).limit(limit)
+
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(stmt)
+                # Unpack scalar JSONB payload blocks directly cleanly
+                return [row for row in result.scalars()]
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting tenant query payload bounds natively: {e}")
+            return []
