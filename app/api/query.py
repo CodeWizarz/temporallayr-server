@@ -87,15 +87,18 @@ async def search_executions(
         except ValueError:
             pass
 
-    result = await storage.search_executions(
+    from app.services.search import search_executions as do_search_executions
+
+    results = await do_search_executions(
         tenant_id=tenant_id,
+        function_name=node_name,
         start_time=start_dt,
         end_time=end_dt,
-        node_name=node_name,
         limit=limit,
         offset=offset,
     )
-    return result
+    # Wrap in expected response dict shape since search service explicitly returns the list natively
+    return {"results": results, "total": len(results)}
 
 
 @router.get("/executions/{execution_id}")
