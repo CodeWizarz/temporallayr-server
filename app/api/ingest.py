@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.core.auth import verify_api_key
+from app.api.auth import verify_api_key
 
 from app.models.ingestion import IngestionPayload
 from app.services.ingestion_service import IngestionService
@@ -17,10 +17,10 @@ def get_ingestion_service() -> IngestionService:
     return ingestion_service
 
 
-@router.post("/ingest", status_code=202)
-async def ingest_telemetry_batch(
+@router.post("/v1/ingest")
+async def ingest(
     payload: IngestionPayload,
-    auth=Depends(verify_api_key),
+    api_key=Depends(verify_api_key),
     service: IngestionService = Depends(get_ingestion_service),
 ):
     """
@@ -34,6 +34,7 @@ async def ingest_telemetry_batch(
             "tenant": payload.tenant_id if hasattr(payload, "tenant_id") else None,
         },
     )
+    print(f"[INGEST RECEIVED] events={len(payload.events)}")
 
     if not payload.events:
         return {

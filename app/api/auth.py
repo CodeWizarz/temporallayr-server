@@ -1,59 +1,24 @@
-import logging
-from fastapi import Request, HTTPException
+from fastapi import Header, HTTPException
+from typing import Optional
 
-logger = logging.getLogger("temporallayr.api.auth")
-
-# In-memory mock mapping for tenant configurations. Real implementation connects to DB.
-MOCK_TENANT_STORE = {
-    "sk_live_123456789": "tenant_alpha_001",
-    "sk_test_987654321": "tenant_beta_002",
-}
+VALID_KEYS = {"demo-key", "test-key", "your-real-key"}
 
 
-async def extract_api_key(request: Request) -> str:
-    """Extract API key from Header, Bearer token, or JSON body."""
+async def verify_api_key(
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+):
     key = None
 
-    # 1. Header: X-API-Key
-    if "x-api-key" in request.headers:
-        key = request.headers.get("x-api-key")
+    # Support Bearer token (SDK default)
+    if authorization and authorization.startswith("Bearer "):
+        key = authorization.replace("Bearer ", "").strip()
 
-    # 2. Header: Authorization: Bearer <key>
-    elif "authorization" in request.headers:
-        auth_header = request.headers.get("authorization", "")
-        if auth_header.lower().startswith("bearer "):
-            key = auth_header[7:]
+    # Support x-api-key header
+    if not key and x_api_key:
+        key = x_api_key
 
-    # 3. JSON body: { "api_key": "..." }
-    if not key:
-        try:
-            body = await request.json()
-            if isinstance(body, dict) and "api_key" in body:
-                key = body.get("api_key")
-        except Exception:
-            pass
+    if not key or key not in VALID_KEYS:
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
-    if not key:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication failed: Missing API key",
-        )
-
-    # Temporarily allow dev-key
-    if key == "dev-key":
-        tenant_id = "tenant_dev_001"
-    else:
-        tenant_id = MOCK_TENANT_STORE.get(key)
-
-    if not tenant_id:
-        logger.warning(
-            f"Unauthorized attempt with masking token ending in '...{key[-4:] if len(key) > 4 else key}'"
-        )
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired authentication credentials strictly blocked.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    logger.info("Auth success for key %s", key[:6])
-    return tenant_id
+    return key
