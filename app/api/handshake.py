@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.core.auth import verify_api_key
 
-router = APIRouter(tags=["Monitoring"])
+router = APIRouter()
 
 
 @router.get("/handshake")
