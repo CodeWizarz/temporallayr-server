@@ -64,3 +64,10 @@ async def global_exception_handler(request, exc):
         status_code=500,
         content={"status": "error", "message": "Internal Server Exception."},
     )
+
+
+@app.on_event("startup")
+async def startup():
+    print("SERVER STARTED — ROUTES LOADED")
+    for route in app.routes:
+        print(route.path)

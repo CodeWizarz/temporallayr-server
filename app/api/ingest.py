@@ -17,7 +17,7 @@ def get_ingestion_service() -> IngestionService:
     return ingestion_service
 
 
-@router.post("/v1/ingest")
+@router.post("/ingest")
 async def ingest(
     payload: IngestionPayload,
     api_key=Depends(verify_api_key),
