@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends
-from app.api.auth import extract_api_key
+from fastapi import APIRouter, Depends, Request
 
 from app.models.ingestion import IngestionPayload
 from app.services.ingestion_service import IngestionService
@@ -19,8 +18,8 @@ def get_ingestion_service() -> IngestionService:
 
 @router.post("/ingest", status_code=202)
 async def ingest_telemetry_batch(
+    request: Request,
     payload: IngestionPayload,
-    tenant_id: str = Depends(extract_api_key),
     service: IngestionService = Depends(get_ingestion_service),
 ):
     """
@@ -34,7 +33,7 @@ async def ingest_telemetry_batch(
             "message": "No events provided in payload array.",
         }
 
-    await service.enqueue(tenant_id, payload.events)
+    await service.enqueue(request.state.api_key, payload.events)
 
     return {
         "status": "accepted",

@@ -8,7 +8,7 @@ from app.api.handshake import router as handshake_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.query import router as query_router
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, AuthMiddleware
 from app.services.ingestion_service import IngestionService
 
 # Configure global structured json logging layouts targeting terminal stdout binds natively
@@ -27,6 +27,7 @@ ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
     logger.info("Initializing TemporalLayr Server components...")
+    print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
     await ingestion_service.start()
@@ -47,6 +48,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(AuthMiddleware)
 app.include_router(handshake_router)
 app.include_router(health_router)
 app.include_router(ingest_router)
