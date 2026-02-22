@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 
-from app.models.query import QueryPayload, QueryResponse, DiffPayload
+from app.models.query import QueryPayload, QueryResponse, DiffPayload, SearchRequest
 
 from app.api.auth import verify_api_key
 
@@ -58,47 +58,29 @@ async def get_executions(
     return result
 
 
-@router.get("/search")
+@router.post("/search")
 async def search_executions(
     request: Request,
-    tenant_id: str,
-    start_time: str | None = None,
-    end_time: str | None = None,
-    node_name: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
-    api_key=Depends(verify_api_key),
-    storage=Depends(get_storage_service),
+    payload: SearchRequest,
+    api_key: str = Depends(verify_api_key),
 ):
-    print(f"[SEARCH] tenant={tenant_id} node={node_name}")
-    from datetime import datetime
-
-    start_dt = None
-    if start_time:
-        try:
-            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-        except ValueError:
-            pass
-
-    end_dt = None
-    if end_time:
-        try:
-            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-        except ValueError:
-            pass
+    # Enforce strict tenant isolation by mapping ID natively from token auth
+    tenant_id = api_key
+    print(f"[SEARCH] tenant={tenant_id} function={payload.function_name}")
 
     from app.services.search import search_executions as do_search_executions
 
     results = await do_search_executions(
         tenant_id=tenant_id,
-        function_name=node_name,
-        start_time=start_dt,
-        end_time=end_dt,
-        limit=limit,
-        offset=offset,
+        function_name=payload.function_name,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        limit=payload.limit,
+        offset=payload.offset,
     )
-    # Wrap in expected response dict shape since search service explicitly returns the list natively
-    return {"results": results, "total": len(results)}
+
+    # Wrap in expected response dict shape
+    return {"results": results}
 
 
 @router.get("/executions/{execution_id}")

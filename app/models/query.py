@@ -32,6 +32,23 @@ class QueryResponse(BaseModel):
     events: List[Dict[str, Any]]
 
 
+class SearchRequest(BaseModel):
+    """Schema validating execution search payloads ensuring native constraint limits."""
+
+    function_name: Optional[str] = Field(
+        None,
+        description="Exact node name string matching deeply executed graph functions",
+    )
+    start_time: Optional[datetime] = Field(
+        None, description="ISO8601 boundary starting constraints"
+    )
+    end_time: Optional[datetime] = Field(
+        None, description="ISO8601 boundary ending constraints"
+    )
+    limit: int = Field(50, ge=1, le=1000, description="Pagination slicing maximums")
+    offset: int = Field(0, ge=0, description="Pagination displacement slice offset")
+
+
 class DiffPayload(BaseModel):
     execution_a: str
     execution_b: str

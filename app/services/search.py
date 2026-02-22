@@ -108,7 +108,7 @@ def _mock_search_fallback(
 ) -> List[Dict[str, Any]]:
     """Fallback for local dev environments lacking active physical PostgreSQL"""
     results = []
-    if tenant_id == "demo-tenant":
+    if tenant_id in ("demo-tenant", "dev-test-key"):
         if function_name == "fake_llm_call":
             results.append(
                 {
