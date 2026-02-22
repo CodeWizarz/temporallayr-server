@@ -1,7 +1,5 @@
 import asyncio
-import asyncio
 import logging
-import json
 from typing import Any, Dict, List
 from datetime import datetime, UTC
 
@@ -101,3 +99,26 @@ class IngestionService:
             logger.error(
                 "Failed persisting batch cleanly via storage backend layer boundaries."
             )
+            return
+
+        from app.core.event_stream import EventStream
+        from datetime import datetime, UTC
+
+        stream = EventStream()
+
+        for item in batch:
+            event_payload = item.get("event", {})
+            exec_id = event_payload.get("execution_id") or event_payload.get("id")
+            tenant_id = item.get("tenant_id")
+
+            if exec_id and tenant_id:
+                asyncio.create_task(
+                    stream.publish(
+                        {
+                            "type": "execution_ingested",
+                            "execution_id": exec_id,
+                            "tenant_id": tenant_id,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        }
+                    )
+                )
