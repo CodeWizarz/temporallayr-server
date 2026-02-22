@@ -33,11 +33,8 @@ async def _send_webhook(url: str, payload: dict, max_retries: int = 3):
     return False
 
 
-async def process_incident(incident: dict):
-    """
-    Evaluates incident mapped to active tenant rules natively, triggering alerts gracefully.
-    Never blocks or propagates exceptions to the ingestion pipeline loops organically.
-    """
+async def _evaluate_and_fire_alerts(incident: dict):
+    """Internal task logic cleanly decoupled from the active ingestion event loop."""
     try:
         from app.services.storage_service import StorageService
 
@@ -84,3 +81,11 @@ async def process_incident(incident: dict):
         logger.error(
             f"Alert Engine encountered unhandled exception structurally shielding ingestion natively: {e}"
         )
+
+
+async def process_incident(incident: dict):
+    """
+    Entrypoint mapping incident payloads smoothly. Spawns an internal background task
+    immediately resolving await cycles to prevent DB storage extraction from blocking ingestion.
+    """
+    asyncio.create_task(_evaluate_and_fire_alerts(incident))

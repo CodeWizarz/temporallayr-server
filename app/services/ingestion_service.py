@@ -221,7 +221,7 @@ class IngestionService:
                                     "summary": new_incident.summary,
                                     "timestamp": new_incident.timestamp,
                                 }
-                                asyncio.create_task(process_incident(payload))
+                                await process_incident(payload)
 
                     except Exception as e:
                         logger.error(
