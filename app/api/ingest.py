@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
+from app.core.auth import verify_api_key
 
 from app.models.ingestion import IngestionPayload
 from app.services.ingestion_service import IngestionService
@@ -18,14 +19,22 @@ def get_ingestion_service() -> IngestionService:
 
 @router.post("/ingest", status_code=202)
 async def ingest_telemetry_batch(
-    request: Request,
     payload: IngestionPayload,
+    auth=Depends(verify_api_key),
     service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Ingest arrays of execution context mappings parsing nested traces.
     Validated payloads are offloaded directly to asynchronous background queue dispatch handlers natively isolating critical IO.
     """
+    logger.info(
+        "INGEST_RECEIVED",
+        extra={
+            "event_count": len(payload.events),
+            "tenant": payload.tenant_id if hasattr(payload, "tenant_id") else None,
+        },
+    )
+
     if not payload.events:
         return {
             "status": "ok",
@@ -33,7 +42,9 @@ async def ingest_telemetry_batch(
             "message": "No events provided in payload array.",
         }
 
-    await service.enqueue(request.state.api_key, payload.events)
+    # Note: Tenant ID handling inside the enqueue can be null or a fixed tenant if not present
+    tenant_id = payload.tenant_id if hasattr(payload, "tenant_id") else "tenant_default"
+    await service.enqueue(tenant_id, payload.events)
 
     return {
         "status": "accepted",
