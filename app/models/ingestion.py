@@ -3,8 +3,9 @@ from pydantic import BaseModel, Field
 
 
 class IngestionPayload(BaseModel):
-    api_key: str = Field(
-        ..., description="TemporalLayr API Key identifying the target tenant"
+    api_key: str | None = Field(
+        default=None,
+        description="TemporalLayr API Key (optional if using Authorization: Bearer header)",
     )
     events: List[Dict[str, Any]] = Field(
         ..., description="Array of structurally tracked telemetry payloads"

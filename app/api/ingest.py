@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Request, Depends
 from app.api.auth import verify_api_key
 
 from app.models.ingestion import IngestionPayload
@@ -19,14 +19,17 @@ def get_ingestion_service() -> IngestionService:
 
 @router.post("/ingest")
 async def ingest(
+    request: Request,
     payload: IngestionPayload,
-    api_key=Depends(verify_api_key),
     service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Ingest arrays of execution context mappings parsing nested traces.
-    Validated payloads are offloaded directly to asynchronous background queue dispatch handlers natively isolating critical IO.
+    Accepts auth via Authorization: Bearer <key> header OR body api_key field.
     """
+    # Auth: pass body key from parsed payload to avoid body double-read
+    api_key = await verify_api_key(request, api_key_from_body=payload.api_key)
+
     logger.info(
         "INGEST_RECEIVED",
         extra={
