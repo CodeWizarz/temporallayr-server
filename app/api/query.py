@@ -115,3 +115,79 @@ async def get_execution(
 
         raise HTTPException(status_code=404, detail="Execution not found")
     return execution
+
+
+@router.post("/replay/{execution_id}")
+async def replay_execution(
+    request: Request,
+    execution_id: str,
+    tenant_id: str,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[REPLAY] execution={execution_id}")
+    execution = await storage.get_execution(
+        tenant_id=tenant_id, execution_id=execution_id
+    )
+    if not execution:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+    nodes = execution.get("nodes", [])
+
+    # Structural topological sort mapping dependencies explicitly
+    ordered_nodes = []
+    visited = set()
+    node_by_id = {}
+
+    for n in nodes:
+        node_id = n.get("id") or n.get("name")
+        if node_id:
+            node_by_id[node_id] = n
+
+    def visit(node_id, current_path=None):
+        if current_path is None:
+            current_path = set()
+        if node_id in visited:
+            return
+        if node_id in current_path:
+            return  # Cycle fallback
+
+        n = node_by_id.get(node_id)
+        if not n:
+            return
+
+        parent_id = n.get("parent_id")
+        if parent_id and parent_id in node_by_id:
+            current_path.add(node_id)
+            visit(parent_id, current_path)
+            current_path.remove(node_id)
+
+        visited.add(node_id)
+        ordered_nodes.append(n)
+
+    for n in nodes:
+        node_id = n.get("id") or n.get("name")
+        if node_id:
+            visit(node_id)
+
+    # Append any unidentified detached leaf topologies
+    for n in nodes:
+        node_id = n.get("id") or n.get("name")
+        if not node_id:
+            ordered_nodes.append(n)
+
+    steps = []
+    for n in ordered_nodes:
+        meta = n.get("metadata", {})
+        steps.append(
+            {
+                "node": n.get("name", "unknown"),
+                "inputs": meta.get("inputs", {}),
+                "output": meta.get("output", {}),
+                "replayed": True,
+            }
+        )
+
+    return {"execution_id": execution_id, "replayed": True, "steps": steps}
