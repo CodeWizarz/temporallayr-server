@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from app.api.handshake import router as handshake_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.query import router as query_router
@@ -46,6 +47,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+app.include_router(handshake_router)
 app.include_router(health_router)
 app.include_router(ingest_router)
 app.include_router(query_router)
