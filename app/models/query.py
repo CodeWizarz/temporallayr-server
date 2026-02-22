@@ -53,3 +53,21 @@ class DiffPayload(BaseModel):
     execution_a: str
     execution_b: str
     tenant_id: str = "demo-tenant"
+
+
+class IncidentItem(BaseModel):
+    """Schema tracking single executions isolated anomaly reports structurally."""
+
+    id: str
+    tenant_id: str
+    execution_id: str
+    timestamp: datetime
+    failure_type: str
+    node_name: Optional[str] = None
+    summary: Optional[str] = None
+
+
+class IncidentsResponse(BaseModel):
+    """Response enclosing array of bound auto-generated incidents querying."""
+
+    incidents: List[IncidentItem]

@@ -83,6 +83,23 @@ async def search_executions(
     return {"results": results}
 
 
+@router.get("/incidents", response_model=None)
+async def get_incidents(
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    api_key: str = Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    tenant_id = api_key
+    print(f"[INCIDENTS QUERY] tenant={tenant_id} limit={limit} offset={offset}")
+
+    results = await storage.list_incidents(
+        tenant_id=tenant_id, limit=limit, offset=offset
+    )
+    return {"incidents": results}
+
+
 @router.get("/executions/{execution_id}")
 async def get_execution(
     request: Request,

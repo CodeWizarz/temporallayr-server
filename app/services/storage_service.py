@@ -246,6 +246,47 @@ class StorageService:
 
         return {"executions": [], "total": 0}
 
+    async def list_incidents(
+        self, tenant_id: str, limit: int = 50, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Fetch strictly isolated incidents sorted newest first natively."""
+        from sqlalchemy import select
+        from app.models.event import Incident
+
+        if not async_session_maker:
+            return []
+
+        try:
+            async with async_session_maker() as session:
+                stmt = (
+                    select(Incident)
+                    .where(Incident.tenant_id == tenant_id)
+                    .order_by(Incident.timestamp.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
+                result = await session.execute(stmt)
+                incidents = result.scalars().all()
+
+                return [
+                    {
+                        "id": str(inc.id),
+                        "tenant_id": inc.tenant_id,
+                        "execution_id": inc.execution_id,
+                        "timestamp": inc.timestamp,
+                        "failure_type": inc.failure_type,
+                        "node_name": inc.node_name,
+                        "summary": inc.summary,
+                    }
+                    for inc in incidents
+                ]
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting incidents natively: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error validating incidents: {e}")
+
+        return []
+
     async def get_execution(
         self, tenant_id: str, execution_id: str
     ) -> Dict[str, Any] | None:
