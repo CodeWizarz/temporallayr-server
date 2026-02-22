@@ -27,6 +27,13 @@ async def ingest(
     Ingest arrays of execution context mappings parsing nested traces.
     Accepts auth via Authorization: Bearer <key> header OR body api_key field.
     """
+    # [DEBUG] Log raw auth inputs before validation
+    print(
+        f"[INGEST DEBUG]\n"
+        f"  header_auth={request.headers.get('authorization') or request.headers.get('Authorization')}\n"
+        f"  body_key={payload.api_key}"
+    )
+
     # Auth: pass body key from parsed payload to avoid body double-read
     api_key = await verify_api_key(request, api_key_from_body=payload.api_key)
 
