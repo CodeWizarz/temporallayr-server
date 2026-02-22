@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 
-from app.models.query import QueryPayload, QueryResponse
+from app.models.query import QueryPayload, QueryResponse, DiffPayload
 
 from app.api.auth import verify_api_key
 
@@ -191,3 +191,82 @@ async def replay_execution(
         )
 
     return {"execution_id": execution_id, "replayed": True, "steps": steps}
+
+
+@router.post("/diff")
+async def diff_executions(
+    request: Request,
+    payload: DiffPayload,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[DIFF] comparing {payload.execution_a} vs {payload.execution_b}")
+    tenant_id = payload.tenant_id
+
+    exec_a = await storage.get_execution(
+        tenant_id=tenant_id, execution_id=payload.execution_a
+    )
+    exec_b = await storage.get_execution(
+        tenant_id=tenant_id, execution_id=payload.execution_b
+    )
+
+    if not exec_a or not exec_b:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=404, detail="Execution not found or tenant mismatch"
+        )
+
+    nodes_a = exec_a.get("nodes", [])
+    nodes_b = exec_b.get("nodes", [])
+
+    def build_map(nodes):
+        node_map = {}
+        for n in nodes:
+            name = n.get("name", "")
+            parent_id = n.get("parent_id", "")
+            key = f"{name}::{parent_id}"
+            node_map[key] = n
+        return node_map
+
+    map_a = build_map(nodes_a)
+    map_b = build_map(nodes_b)
+
+    differences = []
+
+    # Compare logical structural identities matching across branches
+    intersection = set(map_a.keys()).intersection(set(map_b.keys()))
+
+    for key in intersection:
+        node_a = map_a[key]
+        node_b = map_b[key]
+
+        meta_a = node_a.get("metadata", {})
+        meta_b = node_b.get("metadata", {})
+
+        inputs_a = meta_a.get("inputs", {})
+        outputs_a = meta_a.get("output", {})
+
+        inputs_b = meta_b.get("inputs", {})
+        outputs_b = meta_b.get("output", {})
+
+        inputs_changed = inputs_a != inputs_b
+        output_changed = outputs_a != outputs_b
+
+        if inputs_changed or output_changed:
+            differences.append(
+                {
+                    "node": node_a.get("name", "unknown"),
+                    "inputs_changed": inputs_changed,
+                    "output_changed": output_changed,
+                    "old_output": outputs_a,
+                    "new_output": outputs_b,
+                }
+            )
+
+    return {
+        "execution_a": payload.execution_a,
+        "execution_b": payload.execution_b,
+        "total_nodes_compared": len(intersection),
+        "differences": differences,
+    }

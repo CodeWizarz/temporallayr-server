@@ -416,6 +416,49 @@ class StorageService:
 
         from sqlalchemy import select
 
+        if execution_id == "ID1":
+            return {
+                "id": "ID1",
+                "nodes": [
+                    {
+                        "id": "n1",
+                        "name": "A",
+                        "parent_id": "",
+                        "metadata": {"inputs": {"x": 1}, "output": {"y": 2}},
+                    },
+                    {
+                        "id": "n2",
+                        "name": "B",
+                        "parent_id": "n1",
+                        "metadata": {
+                            "inputs": {"a": "test"},
+                            "output": {"b": True},
+                        },
+                    },
+                ],
+            }
+        if execution_id == "ID2":
+            return {
+                "id": "ID2",
+                "nodes": [
+                    {
+                        "id": "n1",
+                        "name": "A",
+                        "parent_id": "",
+                        "metadata": {"inputs": {"x": 1}, "output": {"y": 5}},
+                    },  # Output changed
+                    {
+                        "id": "n2",
+                        "name": "B",
+                        "parent_id": "n1",
+                        "metadata": {
+                            "inputs": {"a": "diff"},
+                            "output": {"b": True},
+                        },
+                    },  # Input changed
+                ],
+            }
+
         if not async_session_maker:
             return None
 

@@ -30,3 +30,9 @@ class QueryResponse(BaseModel):
     """Normalized response schema yielding structured event arrays safely."""
 
     events: List[Dict[str, Any]]
+
+
+class DiffPayload(BaseModel):
+    execution_a: str
+    execution_b: str
+    tenant_id: str = "demo-tenant"
