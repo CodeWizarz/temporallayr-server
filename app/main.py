@@ -6,8 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.handshake import router as handshake_router
 from app.api.health import router as health_router
-from app.api.ingest import router as ingest_router
-from app.api.query import router as query_router
+from app.api import ingest, query, ws
 from app.core.middleware import RequestLoggingMiddleware
 from app.services.ingestion_service import IngestionService
 
@@ -50,8 +49,10 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(handshake_router)
 app.include_router(health_router)
-app.include_router(ingest_router)
-app.include_router(query_router)
+# Mount routers
+app.include_router(ingest.router, prefix="/v1")
+app.include_router(query.router, prefix="/v1")
+app.include_router(ws.router, prefix="/v1")
 
 
 @app.exception_handler(Exception)
