@@ -1,32 +1,25 @@
+import os
 from fastapi import Request, HTTPException
-
-VALID_KEYS = {"demo-key", "test-key", "dev-key"}
 
 
 async def verify_api_key(request: Request, api_key_from_body: str | None = None):
-    """
-    Accepts key via:
-      FORMAT A (preferred): Authorization: Bearer <key>
-      FORMAT B (fallback):  api_key_from_body (passed from parsed payload)
-    """
     key = None
 
-    # --- FORMAT A: Authorization: Bearer <key> ---
-    auth_header = request.headers.get("authorization") or request.headers.get(
-        "Authorization"
-    )
-    print("AUTH HEADER:", auth_header)
+    # FORMAT A (preferred): Authorization header -> Bearer <key>
+    # Note: request.headers is case-insensitive in FastAPI/Starlette
+    authorization = request.headers.get("Authorization")
 
-    if auth_header and auth_header.startswith("Bearer "):
-        key = auth_header[7:].strip()
-
-    # --- FORMAT B: JSON body api_key (injected by caller from parsed payload) ---
-    if not key and api_key_from_body:
+    if authorization and authorization.startswith("Bearer "):
+        key = authorization.split(" ")[1]
+    else:
+        # FORMAT B (legacy fallback): Read from parsed JSON body
         key = api_key_from_body
 
-    print("RESOLVED KEY:", key)
+    print(f"[AUTH CHECK] extracted_key={key}")
 
-    if not key or key not in VALID_KEYS:
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    allowed_keys = os.getenv("TEMPORALLAYR_DEV_KEYS", "dev-test-key").split(",")
+
+    if key not in allowed_keys:
+        raise HTTPException(status_code=401, detail="invalid api key")
 
     return key
