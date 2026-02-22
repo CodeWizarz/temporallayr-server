@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Security
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends
+from app.api.auth import extract_api_key
 
 from app.models.ingestion import IngestionPayload
 from app.services.ingestion_service import IngestionService
@@ -8,32 +8,6 @@ import logging
 logger = logging.getLogger("temporallayr.api.ingest")
 
 router = APIRouter(prefix="/v1", tags=["Ingestion"])
-security = HTTPBearer()
-
-# In-memory mock mapping for tenant configurations. Real implementation connects to DB.
-MOCK_TENANT_STORE = {
-    "sk_live_123456789": "tenant_alpha_001",
-    "sk_test_987654321": "tenant_beta_002",
-}
-
-
-def verify_api_key(
-    credentials: HTTPAuthorizationCredentials = Security(security),
-) -> str:
-    """Validate Bearer tokens against the internal storage mechanisms iteratively mapping Tenant IDs."""
-    token = credentials.credentials
-    tenant_id = MOCK_TENANT_STORE.get(token)
-
-    if not tenant_id:
-        logger.warning(
-            f"Unauthorized ingestion attempt with masking token ending in '...{token[-4:] if len(token) > 4 else token}'"
-        )
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired authentication credentials strictly blocked.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return tenant_id
 
 
 # Global singleton dependencies injected over route layouts dynamically per app instance.
@@ -46,7 +20,7 @@ def get_ingestion_service() -> IngestionService:
 @router.post("/ingest", status_code=202)
 async def ingest_telemetry_batch(
     payload: IngestionPayload,
-    tenant_id: str = Depends(verify_api_key),
+    tenant_id: str = Depends(extract_api_key),
     service: IngestionService = Depends(get_ingestion_service),
 ):
     """
