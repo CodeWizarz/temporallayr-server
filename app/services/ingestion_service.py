@@ -208,6 +208,21 @@ class IngestionService:
                                 print(f"[INCIDENT CREATED] {exec_id}")
 
                             await session.commit()
+
+                            # Fire webhooks strictly on novel incidents natively isolating spam mappings
+                            if not existing_incident:
+                                from app.services.alert_engine import process_incident
+
+                                payload = {
+                                    "id": str(new_incident.id),
+                                    "tenant_id": new_incident.tenant_id,
+                                    "failure_type": new_incident.failure_type,
+                                    "node_name": new_incident.node_name,
+                                    "summary": new_incident.summary,
+                                    "timestamp": new_incident.timestamp,
+                                }
+                                asyncio.create_task(process_incident(payload))
+
                     except Exception as e:
                         logger.error(
                             f"Failed persisting localized incidents securely to database: {e}"

@@ -325,6 +325,26 @@ class StorageService:
             logger.error(f"Unexpected error binding alert rules cleanly: {e}")
             return False
 
+    async def get_alert_rules_for_tenant(self, tenant_id: str):
+        """Extract all active alert configurations organically isolating rules natively."""
+        from sqlalchemy import select
+        from app.models.event import AlertRule
+
+        if not async_session_maker:
+            return []
+
+        try:
+            async with async_session_maker() as session:
+                stmt = select(AlertRule).where(AlertRule.tenant_id == tenant_id)
+                result = await session.execute(stmt)
+                return result.scalars().all()
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting tenant alert rules organically: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error validating tenant rules natively: {e}")
+
+        return []
+
     async def get_execution(
         self, tenant_id: str, execution_id: str
     ) -> Dict[str, Any] | None:
