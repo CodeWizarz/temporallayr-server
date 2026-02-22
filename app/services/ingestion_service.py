@@ -87,6 +87,10 @@ class IngestionService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
+                import traceback
+
+                print(f"[FATAL] Worker exception: {e}")
+                traceback.print_exc()
                 logger.error(f"Error in background ingestion worker: {e}")
 
     async def _write_batch(self, batch: List[Dict[str, Any]]):
@@ -94,6 +98,9 @@ class IngestionService:
         Stream publication is fire-and-forget and always fires, regardless of storage success.
         """
         from app.core.event_stream import EventStream
+        from app.services.failure_detector import detect_execution_failure
+        from app.core.database import async_session_maker
+        from app.models.event import Incident
         from datetime import datetime, UTC
 
         stream = EventStream()
@@ -123,5 +130,51 @@ class IngestionService:
         success = await self._storage.bulk_insert_events(batch)
         if not success:
             logger.error(
-                "Failed persisting batch cleanly via storage backend layer boundaries."
+                "Failed persisting batch cleanly via storage backend layer boundaries. Continuing to failure detection gracefully."
             )
+
+        # Explicitly map execution anomaly engine structurally validating stored boundaries
+        incidents = []
+        for item in batch:
+            event_payload = item.get("event", {})
+            # Natively bind tenant isolation tracing directly into payload for inspection
+            if "tenant_id" not in event_payload and item.get("tenant_id"):
+                event_payload["tenant_id"] = item.get("tenant_id")
+
+            incident_data = await detect_execution_failure(event_payload)
+
+            if incident_data:
+                exec_id = incident_data["execution_id"]
+                print(f"[INCIDENT CREATED] {exec_id}")
+
+                # Transform robust chronological constraints tightly handling UTC conversions
+                ts_str = incident_data.get("timestamp")
+                try:
+                    dt = (
+                        datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if ts_str
+                        else datetime.utcnow()
+                    )
+                except ValueError:
+                    dt = datetime.utcnow()
+
+                incidents.append(
+                    Incident(
+                        tenant_id=incident_data["tenant_id"],
+                        execution_id=exec_id,
+                        timestamp=dt,
+                        failure_type=incident_data["failure_type"],
+                        node_name=incident_data["node_name"],
+                        summary=incident_data["summary"],
+                    )
+                )
+
+        if incidents and async_session_maker:
+            try:
+                async with async_session_maker() as session:
+                    session.add_all(incidents)
+                    await session.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed persisting localized incidents securely to database: {e}"
+                )

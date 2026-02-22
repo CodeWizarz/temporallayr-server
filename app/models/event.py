@@ -34,3 +34,17 @@ class ExecutionSummary(Base):
     node_count = Column(Integer, nullable=False, default=1)
 
     __table_args__ = (Index("ix_execs_tenant_created", "tenant_id", "created_at"),)
+
+
+class Incident(Base):
+    """Production failure tracking isolated completely mapping incidents structurally."""
+
+    __tablename__ = "incidents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    execution_id = Column(String, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    failure_type = Column(String, nullable=False)
+    node_name = Column(String, nullable=True)
+    summary = Column(String, nullable=True)
