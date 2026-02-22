@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.models.query import QueryPayload, QueryResponse
 
-from app.core.auth import verify_api_key
+from app.api.auth import verify_api_key
 
 import logging
 
@@ -40,3 +40,35 @@ async def query_telemetry_history(
     )
 
     return QueryResponse(events=events)
+
+
+@router.get("/executions")
+async def get_executions(
+    request: Request,
+    tenant_id: str,
+    limit: int = 50,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[QUERY] tenant={tenant_id}")
+    executions = await storage.get_executions(tenant_id=tenant_id, limit=limit)
+    return {"executions": executions}
+
+
+@router.get("/executions/{execution_id}")
+async def get_execution(
+    request: Request,
+    execution_id: str,
+    tenant_id: str,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[QUERY] tenant={tenant_id}")
+    execution = await storage.get_execution(
+        tenant_id=tenant_id, execution_id=execution_id
+    )
+    if not execution:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Execution not found")
+    return execution

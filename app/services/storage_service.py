@@ -117,3 +117,85 @@ class StorageService:
         except SQLAlchemyError as e:
             logger.error(f"Failed extracting tenant query payload bounds natively: {e}")
             return []
+
+    async def get_executions(
+        self, tenant_id: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Extract high-level execution summaries natively."""
+        from sqlalchemy import select
+
+        if not async_session_maker:
+            return []
+
+        stmt = (
+            select(Event)
+            .where(Event.api_key == tenant_id)
+            .order_by(Event.timestamp.desc())
+            .limit(limit)
+        )
+
+        executions = []
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(stmt)
+                for event in result.scalars():
+                    payload = event.payload or {}
+                    # Attempt to extract id and node count from standard formats
+                    exec_id = (
+                        payload.get("execution_id")
+                        or payload.get("id")
+                        or str(event.id)
+                    )
+                    nodes = payload.get("nodes", [])
+                    node_count = len(nodes) if isinstance(nodes, list) else 1
+
+                    executions.append(
+                        {
+                            "id": exec_id,
+                            "created_at": event.timestamp.isoformat()
+                            if event.timestamp
+                            else "",
+                            "node_count": node_count,
+                        }
+                    )
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting executions: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error extracting executions: {e}")
+
+        return executions
+
+    async def get_execution(
+        self, tenant_id: str, execution_id: str
+    ) -> Dict[str, Any] | None:
+        """Extract a single full execution graph natively."""
+        from sqlalchemy import select
+
+        if not async_session_maker:
+            return None
+
+        # Optimization: filter query by looking at JSONB directly if possible, or scan bounds
+        stmt = (
+            select(Event)
+            .where(Event.api_key == tenant_id)
+            .order_by(Event.timestamp.desc())
+            .limit(100)
+        )
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(stmt)
+                for event in result.scalars():
+                    payload = event.payload or {}
+                    exec_id = (
+                        payload.get("execution_id")
+                        or payload.get("id")
+                        or str(event.id)
+                    )
+                    if exec_id == execution_id:
+                        return payload
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting single execution: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error extracting single execution: {e}")
+
+        return None
