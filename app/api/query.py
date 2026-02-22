@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Depends, Request
 
-from app.models.query import QueryPayload, QueryResponse, DiffPayload, SearchRequest
+from app.models.query import (
+    QueryPayload,
+    QueryResponse,
+    DiffPayload,
+    SearchRequest,
+    CreateAlertRequest,
+)
 
 from app.api.auth import verify_api_key
 
@@ -98,6 +104,37 @@ async def get_incidents(
         tenant_id=tenant_id, limit=limit, offset=offset
     )
     return {"incidents": results}
+
+
+@router.post("/alerts")
+async def create_alert(
+    request: Request,
+    payload: CreateAlertRequest,
+    api_key: str = Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    from fastapi import HTTPException
+
+    tenant_id = api_key
+    webhook_str = str(payload.webhook_url) if payload.webhook_url else None
+    print(
+        f"[ALERT CREATION] tenant={tenant_id} name={payload.name} webhook={webhook_str}"
+    )
+
+    success = await storage.create_alert_rule(
+        tenant_id=tenant_id,
+        name=payload.name,
+        failure_type=payload.failure_type,
+        node_name=payload.node_name,
+        webhook_url=webhook_str,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=500, detail="Failed persisting alert rule constraint natively."
+        )
+
+    return {"status": "ok"}
 
 
 @router.get("/executions/{execution_id}")

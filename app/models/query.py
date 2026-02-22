@@ -1,6 +1,15 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
+
+
+class CreateAlertRequest(BaseModel):
+    """Schema configuring native outgoing alert rules mapping notifications structurally."""
+
+    name: str
+    failure_type: str
+    node_name: Optional[str] = None
+    webhook_url: Optional[HttpUrl] = None
 
 
 class QueryPayload(BaseModel):
