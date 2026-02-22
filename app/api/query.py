@@ -6,6 +6,8 @@ from app.models.query import (
     DiffPayload,
     SearchRequest,
     CreateAlertRequest,
+    ExecutionQueryRequest,
+    ExecutionQueryResponse,
 )
 
 from app.api.auth import verify_api_key
@@ -24,7 +26,7 @@ def get_storage_service():
     return StorageService()
 
 
-@router.post("/query", response_model=QueryResponse, status_code=200)
+@router.post("/telemetry", response_model=QueryResponse, status_code=200)
 async def query_telemetry_history(
     payload: QueryPayload,
     auth=Depends(verify_api_key),
@@ -46,6 +48,24 @@ async def query_telemetry_history(
     )
 
     return QueryResponse(events=events)
+
+
+@router.post("/query", response_model=ExecutionQueryResponse, status_code=200)
+async def query_executions(
+    payload: ExecutionQueryRequest,
+    api_key: str = Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    """
+    Execution search grouping querying execution strings dynamically over constrained bounds cleanly.
+    """
+    tenant_id = api_key
+
+    results = await storage.search_executions_by_query(
+        tenant_id=tenant_id, query_str=payload.query, limit=payload.limit
+    )
+
+    return ExecutionQueryResponse(results=results)
 
 
 @router.get("/executions")

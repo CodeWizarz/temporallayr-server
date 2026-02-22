@@ -12,6 +12,26 @@ class CreateAlertRequest(BaseModel):
     webhook_url: Optional[HttpUrl] = None
 
 
+class ExecutionQueryRequest(BaseModel):
+    """Schema natively encapsulating search queries looking for explicit execution names."""
+
+    query: str = Field(
+        ..., description="Query explicitly mapping execution function names cleanly."
+    )
+    limit: int = Field(
+        50,
+        ge=1,
+        le=1000,
+        description="Max slicing limit matching DB extraction bounds.",
+    )
+
+
+class ExecutionQueryResponse(BaseModel):
+    """Response payload dynamically containing execution mappings returned."""
+
+    results: List[Dict[str, Any]]
+
+
 class QueryPayload(BaseModel):
     """Schema validating incoming POST requests for event queries natively."""
 
