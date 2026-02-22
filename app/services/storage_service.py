@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.database import async_session_maker
-from app.models.event import Event
+from app.models.event import Event, ExecutionSummary
 
 logger = logging.getLogger("temporallayr.storage")
 
@@ -49,6 +49,20 @@ class StorageService:
             event_models.append(
                 Event(api_key=tenant_id, timestamp=dt, payload=event_data)
             )
+
+            # Build parallel index record extracting graph topologies gracefully
+            exec_id = event_data.get("execution_id") or event_data.get("id")
+            if exec_id:
+                nodes = event_data.get("nodes", [])
+                node_count = len(nodes) if isinstance(nodes, list) else 1
+                event_models.append(
+                    ExecutionSummary(
+                        id=str(exec_id),
+                        tenant_id=tenant_id,
+                        created_at=dt,
+                        node_count=node_count,
+                    )
+                )
 
         # Retry transient storage execution loop natively isolating background worker crashes cleanly
         for attempt in range(1, self.max_retries + 1):
@@ -164,6 +178,60 @@ class StorageService:
             logger.error(f"Unexpected error extracting executions: {e}")
 
         return executions
+
+    async def list_executions(
+        self, tenant_id: str, limit: int = 50, offset: int = 0, sort_desc: bool = True
+    ) -> Dict[str, Any]:
+        """Paginated retrieval native over indexed lightweight tracker models efficiently."""
+        from sqlalchemy import select, func
+
+        if not async_session_maker:
+            return {"executions": [], "total": 0}
+
+        try:
+            async with async_session_maker() as session:
+                # 1. Count total metric quickly against indexes
+                count_stmt = select(func.count(ExecutionSummary.id)).where(
+                    ExecutionSummary.tenant_id == tenant_id
+                )
+                total = await session.scalar(count_stmt) or 0
+
+                # 2. Extract paginated slice gracefully
+                stmt = select(ExecutionSummary).where(
+                    ExecutionSummary.tenant_id == tenant_id
+                )
+
+                if sort_desc:
+                    stmt = stmt.order_by(ExecutionSummary.created_at.desc())
+                else:
+                    stmt = stmt.order_by(ExecutionSummary.created_at.asc())
+
+                stmt = stmt.limit(limit).offset(offset)
+                result = await session.execute(stmt)
+
+                executions = []
+                for summary in result.scalars():
+                    executions.append(
+                        {
+                            "id": summary.id,
+                            "tenant_id": summary.tenant_id,
+                            "created_at": summary.created_at.isoformat()
+                            if summary.created_at
+                            else "",
+                            "node_count": summary.node_count,
+                        }
+                    )
+
+                return {"executions": executions, "total": total}
+
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting indexed executions pagination: {e}")
+        except Exception as e:
+            logger.error(
+                f"Unexpected error extracting indexed executions pagination: {e}"
+            )
+
+        return {"executions": [], "total": 0}
 
     async def get_execution(
         self, tenant_id: str, execution_id: str

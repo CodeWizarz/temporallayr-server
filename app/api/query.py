@@ -47,12 +47,15 @@ async def get_executions(
     request: Request,
     tenant_id: str,
     limit: int = 50,
+    offset: int = 0,
     api_key=Depends(verify_api_key),
     storage=Depends(get_storage_service),
 ):
-    print(f"[QUERY] tenant={tenant_id}")
-    executions = await storage.get_executions(tenant_id=tenant_id, limit=limit)
-    return {"executions": executions}
+    print(f"[INDEX QUERY] tenant={tenant_id} offset={offset}")
+    result = await storage.list_executions(
+        tenant_id=tenant_id, limit=limit, offset=offset
+    )
+    return result
 
 
 @router.get("/executions/{execution_id}")
