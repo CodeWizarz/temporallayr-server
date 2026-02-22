@@ -48,3 +48,7 @@ class Incident(Base):
     failure_type = Column(String, nullable=False)
     node_name = Column(String, nullable=True)
     summary = Column(String, nullable=True)
+
+    # Structural telemetry fingerprints natively bounding recurring anomaly alerts
+    fingerprint = Column(String, nullable=False, index=True, default="")
+    occurrence_count = Column(Integer, nullable=False, default=1)

@@ -65,6 +65,8 @@ class IncidentItem(BaseModel):
     failure_type: str
     node_name: Optional[str] = None
     summary: Optional[str] = None
+    fingerprint: str = ""
+    occurrence_count: int = 1
 
 
 class IncidentsResponse(BaseModel):

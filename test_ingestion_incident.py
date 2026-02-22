@@ -31,13 +31,39 @@ async def test_ingestion_incident():
         },
     }
 
-    print("Triggering batch write synchronously natively...")
+    print(
+        "Triggering batch writes sequentially simulating duplicate anomaly metrics natively..."
+    )
 
-    # Bypass async queue background tasks to ensure logs print directly to the main thread securely
-    await service._write_batch([{"tenant_id": "dev-test-key", "event": failing_event}])
+    from unittest.mock import AsyncMock, patch, MagicMock
+
+    # Setup mocked PostgreSQL session arrays dynamically mapping hash lookups
+    mock_incident = MagicMock()
+    mock_incident.occurrence_count = 1
+    mock_incident.timestamp = datetime.now(UTC)
+
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.side_effect = [None, mock_incident]
+
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = mock_result
+
+    mock_session_maker = MagicMock()
+    mock_session_maker.return_value.__aenter__.return_value = mock_session
+
+    with patch("app.core.database.async_session_maker", mock_session_maker):
+        print("\n--- Event 1 (Should Create) ---")
+        await service._write_batch(
+            [{"tenant_id": "dev-test-key", "event": failing_event}]
+        )
+
+        print("\n--- Event 2 (Should Group) ---")
+        await service._write_batch(
+            [{"tenant_id": "dev-test-key", "event": failing_event}]
+        )
 
     print(
-        "\nIf [INCIDENT CREATED] test-incident-exec-1 printed above, the test passed!"
+        "\nIf [INCIDENT CREATED] followed by [INCIDENT GROUPED] printed above, the test passed!"
     )
 
 

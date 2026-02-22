@@ -134,7 +134,6 @@ class IngestionService:
             )
 
         # Explicitly map execution anomaly engine structurally validating stored boundaries
-        incidents = []
         for item in batch:
             event_payload = item.get("event", {})
             # Natively bind tenant isolation tracing directly into payload for inspection
@@ -145,7 +144,6 @@ class IngestionService:
 
             if incident_data:
                 exec_id = incident_data["execution_id"]
-                print(f"[INCIDENT CREATED] {exec_id}")
 
                 # Transform robust chronological constraints tightly handling UTC conversions
                 ts_str = incident_data.get("timestamp")
@@ -158,23 +156,64 @@ class IngestionService:
                 except ValueError:
                     dt = datetime.utcnow()
 
-                incidents.append(
-                    Incident(
-                        tenant_id=incident_data["tenant_id"],
-                        execution_id=exec_id,
-                        timestamp=dt,
-                        failure_type=incident_data["failure_type"],
-                        node_name=incident_data["node_name"],
-                        summary=incident_data["summary"],
-                    )
-                )
+                import hashlib
+                from datetime import timedelta
+                from sqlalchemy import select
 
-        if incidents and async_session_maker:
-            try:
-                async with async_session_maker() as session:
-                    session.add_all(incidents)
-                    await session.commit()
-            except Exception as e:
-                logger.error(
-                    f"Failed persisting localized incidents securely to database: {e}"
-                )
+                # Natively map fingerprint bounds uniquely locking identical error paths
+                fp_raw = f"{incident_data.get('failure_type', '')}:{incident_data.get('node_name', '')}"
+                fingerprint = hashlib.sha256(fp_raw.encode("utf-8")).hexdigest()
+
+                if async_session_maker:
+                    try:
+                        async with async_session_maker() as session:
+                            # Search for an active incident mapped to this tenant within the last 24 hours natively
+                            twenty_four_hours_ago = dt - timedelta(hours=24)
+
+                            stmt = (
+                                select(Incident)
+                                .where(Incident.tenant_id == incident_data["tenant_id"])
+                                .where(Incident.fingerprint == fingerprint)
+                                .where(Incident.timestamp >= twenty_four_hours_ago)
+                                .order_by(Incident.timestamp.desc())
+                                .limit(1)
+                            )
+
+                            existing_incident = None
+                            try:
+                                result = await session.execute(stmt)
+                                existing_incident = result.scalar_one_or_none()
+                            except Exception as db_err:
+                                logger.warning(
+                                    f"DB offline/unreachable for incident grouping natively: {db_err}"
+                                )
+
+                            if existing_incident:
+                                # Safe native isolation bounds mapping aggregates sequentially
+                                existing_incident.occurrence_count += 1
+                                existing_incident.timestamp = dt
+                                print(f"[INCIDENT GROUPED] {fp_raw}")
+                            else:
+                                new_incident = Incident(
+                                    tenant_id=incident_data["tenant_id"],
+                                    execution_id=exec_id,
+                                    timestamp=dt,
+                                    failure_type=incident_data["failure_type"],
+                                    node_name=incident_data["node_name"],
+                                    summary=incident_data["summary"],
+                                    fingerprint=fingerprint,
+                                    occurrence_count=1,
+                                )
+                                session.add(new_incident)
+                                print(f"[INCIDENT CREATED] {exec_id}")
+
+                            await session.commit()
+                    except Exception as e:
+                        logger.error(
+                            f"Failed persisting localized incidents securely to database: {e}"
+                        )
+                        print(
+                            f"[INCIDENT OFFLINE] {exec_id} (Fingerprint: {fingerprint})"
+                        )
+                else:
+                    print(f"[INCIDENT OFFLINE] {exec_id} (Fingerprint: {fingerprint})")
