@@ -58,6 +58,46 @@ async def get_executions(
     return result
 
 
+@router.get("/search")
+async def search_executions(
+    request: Request,
+    tenant_id: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    node_name: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[SEARCH] tenant={tenant_id} node={node_name}")
+    from datetime import datetime
+
+    start_dt = None
+    if start_time:
+        try:
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    end_dt = None
+    if end_time:
+        try:
+            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    result = await storage.search_executions(
+        tenant_id=tenant_id,
+        start_time=start_dt,
+        end_time=end_dt,
+        node_name=node_name,
+        limit=limit,
+        offset=offset,
+    )
+    return result
+
+
 @router.get("/executions/{execution_id}")
 async def get_execution(
     request: Request,
