@@ -16,7 +16,11 @@ class Event(Base):
     payload = Column(JSONB, nullable=False)
 
     # Composite indexes optimizing multi-tenant temporal slice scans naturally
-    __table_args__ = (Index("ix_events_api_key_timestamp", "api_key", "timestamp"),)
+    # Plus GIN index supporting deep JSON payload traversing natively
+    __table_args__ = (
+        Index("ix_events_api_key_timestamp", "api_key", "timestamp"),
+        Index("ix_events_payload_gin", "payload", postgresql_using="gin"),
+    )
 
 
 class ExecutionSummary(Base):

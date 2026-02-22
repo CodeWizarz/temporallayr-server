@@ -2,7 +2,6 @@ import logging
 import asyncio
 from typing import List, Dict, Any
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.database import async_session_maker
@@ -15,6 +14,12 @@ class StorageService:
     def __init__(self, max_retries: int = 3, base_delay: float = 1.0):
         self.max_retries = max_retries
         self.base_delay = base_delay
+
+        # In-memory execution cache optimizing multi-tenant file-fallback storage arrays natively
+        # tenant_id -> list of execution IDs sorted by newest first
+        self._execution_cache: Dict[str, List[str]] = {}
+
+        print("[INDEX] ready")
 
     async def bulk_insert_events(self, batch: List[Dict[str, Any]]) -> bool:
         """
@@ -63,6 +68,14 @@ class StorageService:
                         node_count=node_count,
                     )
                 )
+
+                # Push to in-memory cache directly resolving mock fallbacks
+                if tenant_id and exec_id:
+                    if tenant_id not in self._execution_cache:
+                        self._execution_cache[tenant_id] = []
+                    # Keep sorted chronological ordering natively appending newest first
+                    if str(exec_id) not in self._execution_cache[tenant_id]:
+                        self._execution_cache[tenant_id].insert(0, str(exec_id))
 
         # Retry transient storage execution loop natively isolating background worker crashes cleanly
         for attempt in range(1, self.max_retries + 1):
