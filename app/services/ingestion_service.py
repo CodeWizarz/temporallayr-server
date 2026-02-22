@@ -90,22 +90,15 @@ class IngestionService:
                 logger.error(f"Error in background ingestion worker: {e}")
 
     async def _write_batch(self, batch: List[Dict[str, Any]]):
-        """Write a batch of events reliably to secondary storage through structured backend routing."""
-        logger.info(
-            f"Dispatching {len(batch)} queued events into PostgreSQL storage backend natively..."
-        )
-        success = await self._storage.bulk_insert_events(batch)
-        if not success:
-            logger.error(
-                "Failed persisting batch cleanly via storage backend layer boundaries."
-            )
-            return
-
+        """Write a batch of events reliably to secondary storage through structured backend routing.
+        Stream publication is fire-and-forget and always fires, regardless of storage success.
+        """
         from app.core.event_stream import EventStream
         from datetime import datetime, UTC
 
         stream = EventStream()
 
+        # Publish to live stream immediately — non-blocking, independent of DB outcome
         for item in batch:
             event_payload = item.get("event", {})
             exec_id = event_payload.get("execution_id") or event_payload.get("id")
@@ -122,3 +115,13 @@ class IngestionService:
                         }
                     )
                 )
+
+        # Persist to storage backend (best-effort; failure does not block the stream)
+        logger.info(
+            f"Dispatching {len(batch)} queued events into PostgreSQL storage backend natively..."
+        )
+        success = await self._storage.bulk_insert_events(batch)
+        if not success:
+            logger.error(
+                "Failed persisting batch cleanly via storage backend layer boundaries."
+            )

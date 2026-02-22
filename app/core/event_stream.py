@@ -1,36 +1,41 @@
 import asyncio
 from typing import Any, AsyncGenerator
 
-# Global singleton queue
-_global_queue: asyncio.Queue | None = None
-
-
-def _get_queue() -> asyncio.Queue:
-    global _global_queue
-    if _global_queue is None:
-        _global_queue = asyncio.Queue()
-    return _global_queue
+# Fan-out pub/sub: each subscriber gets its own queue.
+# Events published here are broadcast to ALL active subscribers independently.
+_subscribers: list[asyncio.Queue] = []
 
 
 class EventStream:
-    """Async event streaming system natively pushing to queues dynamically."""
+    """Async fan-out pub/sub event stream.
+
+    publish() broadcasts to every connected subscriber.
+    subscribe() registers a per-client queue and yields events forever.
+    When the subscriber exits (e.g., WebSocket disconnect), its queue is
+    automatically removed — no memory leaks, no server crashes.
+    """
 
     async def publish(self, event: Any) -> None:
-        """Push an event into the global singleton queue."""
-        q = _get_queue()
-        await q.put(event)
+        """Broadcast an event to all active subscribers."""
+        for q in list(_subscribers):  # snapshot to avoid mutation during iteration
+            await q.put(event)
         print("[STREAM] event published")
 
     async def subscribe(self) -> AsyncGenerator[Any, None]:
-        """Async generator yielding events forever. Resilient against consumer disconnects."""
-        q = _get_queue()
+        """Async generator: register a subscriber queue, yield events, clean up on exit."""
+        q: asyncio.Queue = asyncio.Queue()
+        _subscribers.append(q)
         try:
             while True:
                 event = await q.get()
                 yield event
         except asyncio.CancelledError:
-            # Client disconnected securely without crashing the backend loop
+            # Client disconnected cleanly
             pass
         except Exception as e:
-            # Fallback capturing unexpected consumer iterations
-            print(f"[STREAM] Consumer disconnected unexpectedly: {e}")
+            print(f"[STREAM] subscriber error: {e}")
+        finally:
+            try:
+                _subscribers.remove(q)
+            except ValueError:
+                pass  # Already removed; safe to ignore

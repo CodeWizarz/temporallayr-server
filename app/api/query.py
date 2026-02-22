@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger("temporallayr.api.query")
 
-router = APIRouter(prefix="/v1", tags=["Querying"])
+router = APIRouter(tags=["Querying"])
 
 
 def get_storage_service():

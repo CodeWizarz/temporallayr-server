@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger("temporallayr.api.ingest")
 
-router = APIRouter(prefix="/v1", tags=["Ingestion"])
+router = APIRouter(tags=["Ingestion"])
 
 
 # Global singleton dependencies injected over route layouts dynamically per app instance.
