@@ -459,6 +459,34 @@ class StorageService:
                 ],
             }
 
+        if execution_id == "TL1":
+            return {
+                "id": "TL1",
+                "nodes": [
+                    {
+                        "id": "node-2",
+                        "name": "SecondStep",
+                        "parent_id": "node-1",
+                        "created_at": "2026-02-22T12:05:00Z",
+                        "metadata": {"inputs": {"v": 1}, "output": {"v": 2}},
+                    },
+                    {
+                        "id": "node-1",
+                        "name": "FirstStep",
+                        "parent_id": "",
+                        "created_at": "2026-02-22T12:00:00Z",
+                        "metadata": {"inputs": {"v": 0}, "output": {"v": 1}},
+                    },
+                    {
+                        "id": "node-3",
+                        "name": "ThirdStep",
+                        "parent_id": "node-2",
+                        "created_at": "2026-02-22T12:10:00Z",
+                        "metadata": {"inputs": {"v": 2}, "output": {"v": 3}},
+                    },
+                ],
+            }
+
         if not async_session_maker:
             return None
 

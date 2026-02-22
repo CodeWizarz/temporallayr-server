@@ -270,3 +270,52 @@ async def diff_executions(
         "total_nodes_compared": len(intersection),
         "differences": differences,
     }
+
+
+@router.get("/timeline/{execution_id}")
+async def get_execution_timeline(
+    request: Request,
+    execution_id: str,
+    tenant_id: str,
+    api_key=Depends(verify_api_key),
+    storage=Depends(get_storage_service),
+):
+    print(f"[TIMELINE] loaded execution {execution_id}")
+
+    execution = await storage.get_execution(
+        tenant_id=tenant_id, execution_id=execution_id
+    )
+
+    if not execution:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=404, detail="Execution not found or tenant mismatch"
+        )
+
+    nodes = execution.get("nodes", [])
+    extracted_nodes = []
+
+    for n in nodes:
+        meta = n.get("metadata", {})
+        extracted_nodes.append(
+            {
+                "node_id": n.get("id", ""),
+                "name": n.get("name", "unknown"),
+                "parent_id": n.get("parent_id"),
+                "timestamp": n.get("created_at", ""),
+                "inputs": meta.get("inputs", {}),
+                "output": meta.get("output", {}),
+            }
+        )
+
+    # Sort nodes by created_at ascending parsing chronological execution natively
+    extracted_nodes.sort(key=lambda item: item["timestamp"] or "")
+
+    timeline = []
+    for idx, node_data in enumerate(extracted_nodes):
+        event = {"order": idx}
+        event.update(node_data)
+        timeline.append(event)
+
+    return {"execution_id": execution_id, "timeline": timeline}
