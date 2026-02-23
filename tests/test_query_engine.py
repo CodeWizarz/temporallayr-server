@@ -29,7 +29,7 @@ class TestQueryEngine(unittest.TestCase):
 
         mock_event = Event(
             id=uuid.uuid4(),
-            api_key=self.tenant_id,
+            tenant_id=self.tenant_id,
             timestamp=datetime.datetime.utcnow(),
             payload={
                 "execution_id": "exec-123",

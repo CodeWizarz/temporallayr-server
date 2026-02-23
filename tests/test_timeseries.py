@@ -67,21 +67,21 @@ class TestTimeSeriesEngine(unittest.IsolatedAsyncioTestCase):
         events = [
             (
                 Event(
-                    api_key="tenant-metrics",
+                    tenant_id="tenant-metrics",
                     timestamp=datetime.fromtimestamp(t_base + 10, tz=timezone.utc),
                     payload={"status": "COMPLETED", "metrics": {"duration_ms": 100.0}},
                 ),
             ),
             (
                 Event(
-                    api_key="tenant-metrics",
+                    tenant_id="tenant-metrics",
                     timestamp=datetime.fromtimestamp(t_base + 15, tz=timezone.utc),
                     payload={"status": "FAILED", "metrics": {"duration_ms": 300.0}},
                 ),
             ),
             (
                 Event(
-                    api_key="tenant-metrics",
+                    tenant_id="tenant-metrics",
                     timestamp=datetime.fromtimestamp(t_base + 65, tz=timezone.utc),
                     payload={"status": "COMPLETED", "metrics": {"duration_ms": 200.0}},
                 ),

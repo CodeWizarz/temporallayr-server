@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
     logger.info("Initializing TemporalLayr Server components...")
     print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
+    print("Query API ready")
+    print("Stats API ready")
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
     await ingestion_service.start()
@@ -59,6 +61,7 @@ from app.api.dashboard import router_dash as dashboard_router
 from app.api.dashboard import router_sq as saved_query_router
 from app.api.metrics import router as metrics_router
 from app.api.traces import router as traces_router
+from app.api.stats import router as stats_router
 
 app.include_router(stream.router, prefix="/v1")
 app.include_router(rules.router, prefix="/v1")
@@ -66,6 +69,7 @@ app.include_router(dashboard_router)
 app.include_router(saved_query_router)
 app.include_router(metrics_router)
 app.include_router(traces_router)
+app.include_router(stats_router)
 
 
 @app.exception_handler(Exception)

@@ -57,7 +57,7 @@ class TestTracesAPI(unittest.IsolatedAsyncioTestCase):
         trace_id = str(uuid.uuid4())
         mock_event = Event(
             id=uuid.UUID(trace_id),
-            api_key="tenant-traces-test",
+            tenant_id="tenant-traces-test",
             timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
             payload={"foo": "bar", "status": "COMPLETED"},
         )
@@ -109,13 +109,13 @@ class TestTracesAPI(unittest.IsolatedAsyncioTestCase):
         mock_events = [
             Event(
                 id=e1_id,
-                api_key="tenant-traces-test",
+                tenant_id="tenant-traces-test",
                 timestamp=datetime(2026, 1, 2, tzinfo=timezone.utc),
                 payload={"status": "FAILED"},
             ),
             Event(
                 id=e2_id,
-                api_key="tenant-traces-test",
+                tenant_id="tenant-traces-test",
                 timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 payload={"status": "COMPLETED"},
             ),

@@ -54,7 +54,7 @@ class QueryEngine:
 
     async def search_events(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Search execution trace payloads directly checking boundaries natively."""
-        stmt = select(Event).where(Event.api_key == query.tenant_id)
+        stmt = select(Event).where(Event.tenant_id == query.tenant_id)
 
         # Apply strict query boundaries natively
         filters = query.filters
@@ -190,7 +190,7 @@ class QueryEngine:
     async def search_clusters(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Search execution metadata flags natively finding cluster aggregates."""
         # Clusters are derived natively over "attributes.cluster_id" mapped into the payload.
-        stmt = select(Event).where(Event.api_key == query.tenant_id)
+        stmt = select(Event).where(Event.tenant_id == query.tenant_id)
 
         if query.filters.cluster_id:
             stmt = stmt.where(

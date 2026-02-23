@@ -11,14 +11,17 @@ class Event(Base):
     __tablename__ = "events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    api_key = Column(String, nullable=False, index=True)
-    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    tenant_id = Column(String, nullable=False, index=True)
+    event_type = Column(String, nullable=False, default="execution_graph", index=True)
+    timestamp = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
     payload = Column(JSONB, nullable=False)
 
     # Composite indexes optimizing multi-tenant temporal slice scans naturally
     # Plus GIN index supporting deep JSON payload traversing natively
     __table_args__ = (
-        Index("ix_events_api_key_timestamp", "api_key", "timestamp"),
+        Index("idx_events_tenant_time", "tenant_id", timestamp.desc()),
         Index("ix_events_payload_gin", "payload", postgresql_using="gin"),
     )
 

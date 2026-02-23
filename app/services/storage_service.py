@@ -52,7 +52,7 @@ class StorageService:
                 dt = datetime.utcnow()
 
             event_models.append(
-                Event(api_key=tenant_id, timestamp=dt, payload=event_data)
+                Event(tenant_id=tenant_id, timestamp=dt, payload=event_data)
             )
 
             # Build parallel index record extracting graph topologies gracefully
@@ -126,7 +126,7 @@ class StorageService:
             return []
 
         # Bound explicit scan parameters natively
-        stmt = select(Event.payload).where(Event.api_key == tenant_id)
+        stmt = select(Event.payload).where(Event.tenant_id == tenant_id)
 
         if from_time:
             stmt = stmt.where(Event.timestamp >= from_time)
@@ -166,7 +166,7 @@ class StorageService:
             # Simulated offline boundaries testing logic directly
             return [{"tenant_id": tenant_id, "mock": True}]
 
-        stmt = select(Event.payload).where(Event.api_key == tenant_id)
+        stmt = select(Event.payload).where(Event.tenant_id == tenant_id)
 
         # Apply strict query filters mappings naturally without hardcoding nested fields destructively
         if start_time:
@@ -259,7 +259,7 @@ class StorageService:
 
         stmt = (
             select(Event)
-            .where(Event.api_key == tenant_id)
+            .where(Event.tenant_id == tenant_id)
             .order_by(Event.timestamp.desc())
             .limit(limit)
         )
@@ -570,7 +570,7 @@ class StorageService:
         # Optimization: filter query by looking at JSONB directly if possible, or scan bounds
         stmt = (
             select(Event)
-            .where(Event.api_key == tenant_id)
+            .where(Event.tenant_id == tenant_id)
             .order_by(Event.timestamp.desc())
             .limit(100)
         )

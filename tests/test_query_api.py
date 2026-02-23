@@ -12,7 +12,7 @@ GLOBAL_MOCK_DB = []
 for i in range(10):
     GLOBAL_MOCK_DB.append(
         {
-            "api_key": "dev-test-key",
+            "tenant_id": "dev-test-key",
             "timestamp": datetime.now(UTC) - timedelta(minutes=i),
             "payload": {
                 "id": f"exec-{i}",
@@ -46,7 +46,7 @@ class TestQueryAPI(unittest.TestCase):
                 # Fast dummy filter mappings
                 results = []
                 for item in GLOBAL_MOCK_DB:
-                    if item["api_key"] != tenant_id:
+                    if item["tenant_id"] != tenant_id:
                         continue
                     if fingerprint and item["payload"]["fingerprint"] != fingerprint:
                         continue

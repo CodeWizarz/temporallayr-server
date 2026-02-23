@@ -21,7 +21,7 @@ async def get_trace(tenant_id: str, trace_id: str) -> Dict[str, Any]:
         return None
 
     async with async_session_maker() as session:
-        query = select(Event).where(Event.id == query_id, Event.api_key == tenant_id)
+        query = select(Event).where(Event.id == query_id, Event.tenant_id == tenant_id)
 
         result = await session.execute(query)
         event = result.scalars().first()
@@ -32,7 +32,7 @@ async def get_trace(tenant_id: str, trace_id: str) -> Dict[str, Any]:
         return {
             "id": str(event.id),
             "timestamp": event.timestamp.isoformat() if event.timestamp else None,
-            "tenant_id": event.api_key,
+            "tenant_id": event.tenant_id,
             "payload": event.payload,
         }
 
@@ -50,7 +50,7 @@ async def list_traces(
     offset = max(0, offset)
 
     async with async_session_maker() as session:
-        query = select(Event).where(Event.api_key == tenant_id)
+        query = select(Event).where(Event.tenant_id == tenant_id)
 
         if status:
             query = query.where(Event.payload["status"].astext == status)

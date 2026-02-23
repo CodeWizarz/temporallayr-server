@@ -48,7 +48,7 @@ async def aggregate_timeseries(
     query = (
         select(Event)
         .where(
-            Event.api_key == tenant_id,
+            Event.tenant_id == tenant_id,
             Event.timestamp >= start_time,
             Event.timestamp <= end_time,
         )
