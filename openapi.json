@@ -1,0 +1,3792 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TemporalLayr Ingestion Server",
+    "description": "Production telemetry ingestion dispatch cluster resolving event arrays into backend isolation mechanisms.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/handshake": {
+      "get": {
+        "summary": "Handshake",
+        "description": "SDK handshake endpoint for connectivity validation.",
+        "operationId": "handshake_handshake_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Health Check",
+        "description": "Liveness probe reporting backend availability explicitly.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ingest": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest",
+        "description": "Ingest arrays of execution context mappings parsing nested traces.\nAccepts auth via Authorization: Bearer <key> header OR body api_key field.",
+        "operationId": "ingest_v1_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/telemetry": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Query Telemetry History",
+        "description": "Paginated telemetry extraction endpoint natively scanning backend bounded payloads defensively.",
+        "operationId": "query_telemetry_history_v1_telemetry_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/query": {
+      "post": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Time Bucket Engine",
+        "description": "Time Bucket Engine: executes fast `date_trunc` aggregations natively\nprotecting ORM boundaries by executing raw aggregate counts gracefully!",
+        "operationId": "time_bucket_engine_v1_query_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DateTruncQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Time Bucket Engine V1 Query Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/executions": {
+      "get": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Get Executions",
+        "operationId": "get_executions_v1_executions_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Search Executions",
+        "operationId": "search_executions_v1_search_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/incidents": {
+      "get": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Get Incidents",
+        "operationId": "get_incidents_v1_incidents_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/alerts": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Create Alert",
+        "operationId": "create_alert_v1_alerts_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Get Execution",
+        "operationId": "get_execution_v1_executions__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/replay/{execution_id}": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Replay Execution",
+        "operationId": "replay_execution_v1_replay__execution_id__post",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/diff": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Diff Executions",
+        "operationId": "diff_executions_v1_diff_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiffPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/timeline/{execution_id}": {
+      "get": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Get Execution Timeline",
+        "operationId": "get_execution_timeline_v1_timeline__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/query/events": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Api Query Events",
+        "description": "Scan and fetch real-time traces via dynamic JSON filtering structures.",
+        "operationId": "api_query_events_v1_query_events_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiResourceQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/query/incidents": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Api Query Incidents",
+        "description": "Scan alert mappings natively fetching anomalies securely.",
+        "operationId": "api_query_incidents_v1_query_incidents_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiResourceQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/query/clusters": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Api Query Clusters",
+        "description": "Resolve bounds fetching topological aggregates dynamically.",
+        "operationId": "api_query_clusters_v1_query_clusters_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiResourceQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/query/nodes": {
+      "post": {
+        "tags": [
+          "Querying"
+        ],
+        "summary": "Api Query Nodes",
+        "description": "Extract individual JSONB leaf structures spanning deep graph traces.",
+        "operationId": "api_query_nodes_v1_query_nodes_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiResourceQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rules": {
+      "post": {
+        "tags": [
+          "Rules"
+        ],
+        "summary": "Create Rule",
+        "description": "Implement fully scalable rule structures persistently natively mapping cache.",
+        "operationId": "create_rule_v1_rules_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Rules"
+        ],
+        "summary": "List Rules",
+        "description": "Fetch enabled tenant detection rules mapping memory cache successfully.",
+        "operationId": "list_rules_v1_rules_get",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleSchema"
+                  },
+                  "title": "Response List Rules V1 Rules Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rules/{rule_id}": {
+      "delete": {
+        "tags": [
+          "Rules"
+        ],
+        "summary": "Delete Rule",
+        "description": "Safely clear detection rules from DB securely evicting cache traces.",
+        "operationId": "delete_rule_v1_rules__rule_id__delete",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard": {
+      "post": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Create Dashboard",
+        "description": "Provisions structural grid bounds encapsulating metrics natively.",
+        "operationId": "create_dashboard_v1_dashboard_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "List Dashboards",
+        "operationId": "list_dashboards_v1_dashboard_get",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DashboardListResponse"
+                  },
+                  "title": "Response List Dashboards V1 Dashboard Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/{dashboard_id}/panel": {
+      "post": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Add Panel To Dashboard",
+        "description": "Assigns analytic grid metrics over Dashboards isolating tenants explicitly!",
+        "operationId": "add_panel_to_dashboard_v1_dashboard__dashboard_id__panel_post",
+        "parameters": [
+          {
+            "name": "dashboard_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dashboard Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PanelCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PanelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/{dashboard_id}": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get Dashboard",
+        "description": "Loads recursive nested topological panel grids flawlessly cleanly for UI hydration.",
+        "operationId": "get_dashboard_v1_dashboard__dashboard_id__get",
+        "parameters": [
+          {
+            "name": "dashboard_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dashboard Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/{dashboard_id}/run": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Run Dashboard Queries",
+        "description": "Hydrates Front-End Dashboards comprehensively invoking organic background engines mapping async panels neatly over robust bounds!",
+        "operationId": "run_dashboard_queries_v1_dashboard__dashboard_id__run_get",
+        "parameters": [
+          {
+            "name": "dashboard_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dashboard Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/saved-query": {
+      "post": {
+        "tags": [
+          "Saved Query"
+        ],
+        "summary": "Create Saved Query",
+        "description": "Stores analytical telemetry mappings structurally persistently.",
+        "operationId": "create_saved_query_v1_saved_query_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedQueryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Saved Query"
+        ],
+        "summary": "List Saved Queries",
+        "operationId": "list_saved_queries_v1_saved_query_get",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SavedQueryResponse"
+                  },
+                  "title": "Response List Saved Queries V1 Saved Query Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/metrics/timeseries": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Get Timeseries Metrics",
+        "description": "Generates explicit time-series charts mapping streams organically across tenant grids natively.",
+        "operationId": "get_timeseries_metrics_v1_metrics_timeseries_get",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 start time",
+              "title": "Start"
+            },
+            "description": "ISO 8601 start time"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 end time",
+              "title": "End"
+            },
+            "description": "ISO 8601 end time"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Bucket interval in seconds",
+              "title": "Interval"
+            },
+            "description": "Bucket interval in seconds"
+          },
+          {
+            "name": "metric",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Metric type to calculate",
+              "title": "Metric"
+            },
+            "description": "Metric type to calculate"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Timeseries Metrics V1 Metrics Timeseries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces": {
+      "get": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "List Recent Traces",
+        "description": "Lists bounded executions sequentially natively masking trace bounds across limits correctly.",
+        "operationId": "list_recent_traces_v1_traces_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Pagination bounds strictly capping payload responses",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Pagination bounds strictly capping payload responses"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Pagination displacement slice offset",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Pagination displacement slice offset"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional status filtering",
+              "title": "Status"
+            },
+            "description": "Optional status filtering"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Recent Traces V1 Traces Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces/{trace_id}": {
+      "get": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Get Specific Trace",
+        "description": "Retrieves a fully bounded execution generic graph organically fetching explicitly.",
+        "operationId": "get_specific_trace_v1_traces__trace_id__get",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target execution trace graph ID natively tracking execution context",
+              "title": "Trace Id"
+            },
+            "description": "Target execution trace graph ID natively tracking execution context"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Specific Trace V1 Traces  Trace Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/top-functions": {
+      "get": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Get Top Functions",
+        "description": "Top Nodes Aggregator: natively unfolds JSONB arrays exploring heaviest graphs intrinsically!",
+        "operationId": "get_top_functions_v1_stats_top_functions_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target enterprise tenant mapping extraction",
+              "title": "Tenant Id"
+            },
+            "description": "Target enterprise tenant mapping extraction"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Top Functions V1 Stats Top Functions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/errors": {
+      "get": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Get Error Rate",
+        "description": "Error Rate Indicator: captures anomaly distributions directly bypassing DB heavy load boundaries natively!",
+        "operationId": "get_error_rate_v1_stats_errors_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target enterprise tenant mapped globally",
+              "title": "Tenant Id"
+            },
+            "description": "Target enterprise tenant mapped globally"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Error Rate V1 Stats Errors Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/durations": {
+      "get": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Get Durations",
+        "description": "Latency & Duration Extraction: calculates accurate P95 percentiles\ndynamically in Postgres by parsing node metadata outputs natively!",
+        "operationId": "get_durations_v1_stats_durations_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target enterprise tenant mapped globally",
+              "title": "Tenant Id"
+            },
+            "description": "Target enterprise tenant mapped globally"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Durations V1 Stats Durations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/overview": {
+      "get": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Get Overview",
+        "description": "Live Data Summary Widget: Returns fast macros avoiding N+1 scaling.\nCalculates moving 1h/24h metrics mapped securely against live telemetry.",
+        "operationId": "get_overview_v1_overview_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target enterprise tenant mapping globally",
+              "title": "Tenant Id"
+            },
+            "description": "Target enterprise tenant mapping globally"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Overview V1 Overview Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/schema": {
+      "get": {
+        "tags": [
+          "Observability Dashboard Backend"
+        ],
+        "summary": "Get Schema",
+        "description": "Auto-Schema Detector: Scans latest N structures flattening deep JSON matrices\nproducing string structural metadata for downstream dashboard queries naturally.",
+        "operationId": "get_schema_v1_schema_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Target enterprise tenant schema parser",
+              "title": "Tenant Id"
+            },
+            "description": "Target enterprise tenant schema parser"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Schema V1 Schema Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/ready": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Health Check",
+        "description": "Health Check querying internal Postgres states smoothly!",
+        "operationId": "health_check_v1_dashboard_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/search": {
+      "post": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Search Events",
+        "description": "Cursor-bound UI pagination search effectively isolating OFFSET performance drag.",
+        "operationId": "search_events_v1_dashboard_search_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/query": {
+      "post": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Query Aggregation",
+        "description": "Pipeline aggregation engine seamlessly mapping UI configurations natively into PG.",
+        "operationId": "query_aggregation_v1_dashboard_query_post",
+        "parameters": [
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/overview": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Wrapper Overview",
+        "operationId": "wrapper_overview_v1_dashboard_overview_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "dashboard tenant",
+              "title": "Tenant Id"
+            },
+            "description": "dashboard tenant"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/schema": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Wrapper Schema",
+        "operationId": "wrapper_schema_v1_dashboard_schema_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "dashboard tenant",
+              "title": "Tenant Id"
+            },
+            "description": "dashboard tenant"
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/stats/top-functions": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Wrapper Top Functions",
+        "operationId": "wrapper_top_functions_v1_dashboard_stats_top_functions_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/stats/errors": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Wrapper Errors",
+        "operationId": "wrapper_errors_v1_dashboard_stats_errors_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/stats/durations": {
+      "get": {
+        "tags": [
+          "Dashboard Ext"
+        ],
+        "summary": "Wrapper Durations",
+        "operationId": "wrapper_durations_v1_dashboard_stats_durations_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "api_key_from_body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key From Body"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateAlertRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "failure_type": {
+            "type": "string",
+            "title": "Failure Type"
+          },
+          "node_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Name"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "failure_type"
+        ],
+        "title": "CreateAlertRequest",
+        "description": "Schema configuring native outgoing alert rules mapping notifications structurally."
+      },
+      "DashboardCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "DashboardCreate"
+      },
+      "DashboardListResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "created_at"
+        ],
+        "title": "DashboardListResponse"
+      },
+      "DashboardQueryRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "pipeline": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineStage"
+            },
+            "type": "array",
+            "title": "Pipeline"
+          },
+          "time_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time From"
+          },
+          "time_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "pipeline"
+        ],
+        "title": "DashboardQueryRequest"
+      },
+      "DashboardResponse": {
+        "properties": {
+          "dashboard_id": {
+            "type": "string",
+            "title": "Dashboard Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "panels": {
+            "items": {
+              "$ref": "#/components/schemas/PanelResponse"
+            },
+            "type": "array",
+            "title": "Panels"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dashboard_id",
+          "name",
+          "panels",
+          "created_at"
+        ],
+        "title": "DashboardResponse"
+      },
+      "DashboardSearchRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "contains": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contains"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          },
+          "time_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time From"
+          },
+          "time_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "cursor is formatted as {timestamp_iso}_{uuid}"
+          },
+          "select": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Select"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tenant_id"
+        ],
+        "title": "DashboardSearchRequest"
+      },
+      "DateTruncQueryRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To"
+          },
+          "group_by": {
+            "type": "string",
+            "title": "Group By"
+          },
+          "metric": {
+            "type": "string",
+            "title": "Metric"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "from",
+          "to",
+          "group_by",
+          "metric"
+        ],
+        "title": "DateTruncQueryRequest"
+      },
+      "DiffPayload": {
+        "properties": {
+          "execution_a": {
+            "type": "string",
+            "title": "Execution A"
+          },
+          "execution_b": {
+            "type": "string",
+            "title": "Execution B"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": "demo-tenant"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_a",
+          "execution_b"
+        ],
+        "title": "DiffPayload"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IngestionPayload": {
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "TemporalLayr API Key (optional if using Authorization: Bearer header)"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id",
+            "description": "Tenant identifier \u2014 used to route live events to the correct WebSocket subscriber"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Array of structurally tracked telemetry payloads"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "IngestionPayload"
+      },
+      "MultiResourceQueryRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": ""
+          },
+          "filters": {
+            "$ref": "#/components/schemas/QueryFilters"
+          },
+          "search_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Text"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortOption"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "title": "Limit",
+            "default": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "MultiResourceQueryRequest"
+      },
+      "PanelCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "saved_query_id": {
+            "type": "string",
+            "title": "Saved Query Id"
+          },
+          "position_x": {
+            "type": "number",
+            "title": "Position X",
+            "default": 0.0
+          },
+          "position_y": {
+            "type": "number",
+            "title": "Position Y",
+            "default": 0.0
+          },
+          "width": {
+            "type": "number",
+            "title": "Width",
+            "default": 1.0
+          },
+          "height": {
+            "type": "number",
+            "title": "Height",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "saved_query_id"
+        ],
+        "title": "PanelCreate"
+      },
+      "PanelResponse": {
+        "properties": {
+          "panel_id": {
+            "type": "string",
+            "title": "Panel Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "saved_query": {
+            "$ref": "#/components/schemas/SavedQueryResponse"
+          },
+          "position_x": {
+            "type": "number",
+            "title": "Position X"
+          },
+          "position_y": {
+            "type": "number",
+            "title": "Position Y"
+          },
+          "width": {
+            "type": "number",
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "panel_id",
+          "name",
+          "saved_query",
+          "position_x",
+          "position_y",
+          "width",
+          "height"
+        ],
+        "title": "PanelResponse"
+      },
+      "PipelineStage": {
+        "properties": {
+          "group_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group By"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "title": "PipelineStage"
+      },
+      "QueryFilters": {
+        "properties": {
+          "execution_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Id"
+          },
+          "node_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Name"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "time_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "QueryFilters"
+      },
+      "QueryPayload": {
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "title": "Api Key",
+            "description": "TemporalLayr API Key identifying the target tenant"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Pagination bounds strictly capping payload responses",
+            "default": 100
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "ISO8601 boundary starting queries"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "ISO8601 boundary ending queries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key"
+        ],
+        "title": "QueryPayload",
+        "description": "Schema validating incoming POST requests for event queries natively."
+      },
+      "QueryRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": ""
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "default": 100
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Sort",
+            "default": "desc"
+          }
+        },
+        "type": "object",
+        "title": "QueryRequest"
+      },
+      "QueryResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "QueryResponse",
+        "description": "Normalized response schema yielding structured event arrays safely."
+      },
+      "QueryResult": {
+        "properties": {
+          "data": {
+            "items": {},
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "default": false
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total"
+        ],
+        "title": "QueryResult"
+      },
+      "ResponseMeta": {
+        "properties": {
+          "query_ms": {
+            "type": "number",
+            "title": "Query Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query_ms"
+        ],
+        "title": "ResponseMeta"
+      },
+      "RuleActions": {
+        "properties": {
+          "create_incident": {
+            "type": "boolean",
+            "title": "Create Incident",
+            "default": true
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity",
+            "default": "medium"
+          },
+          "notify": {
+            "type": "boolean",
+            "title": "Notify",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "RuleActions"
+      },
+      "RuleCondition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "node_error_rate",
+              "execution_latency",
+              "divergence_detected",
+              "cluster_anomaly",
+              "custom_expression"
+            ],
+            "title": "Type"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "RuleCondition"
+      },
+      "RuleCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 0
+          },
+          "condition": {
+            "$ref": "#/components/schemas/RuleCondition"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/RuleActions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "condition",
+          "actions"
+        ],
+        "title": "RuleCreateRequest"
+      },
+      "RuleSchema": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 0
+          },
+          "condition": {
+            "$ref": "#/components/schemas/RuleCondition"
+          },
+          "actions": {
+            "$ref": "#/components/schemas/RuleActions"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "condition",
+          "actions",
+          "created_at"
+        ],
+        "title": "RuleSchema"
+      },
+      "SavedQueryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "query_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Query Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "query_json"
+        ],
+        "title": "SavedQueryCreate"
+      },
+      "SavedQueryResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "query_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Query Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "query_json",
+          "created_at"
+        ],
+        "title": "SavedQueryResponse"
+      },
+      "SearchRequest": {
+        "properties": {
+          "function_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Function Name",
+            "description": "Exact node name string matching deeply executed graph functions"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time",
+            "description": "ISO8601 boundary starting constraints"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time",
+            "description": "ISO8601 boundary ending constraints"
+          },
+          "contains": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contains",
+            "description": "ILIKE raw text extraction safely mapping Postgres payloads natively"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "Deep arbitrary JSONB metadata filters tracing schemas optimally"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Pagination slicing maximums",
+            "default": 50
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset",
+            "description": "Pagination displacement slice offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "SearchRequest",
+        "description": "Schema validating execution search payloads ensuring native constraint limits."
+      },
+      "SortOption": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "default": "timestamp"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Direction",
+            "default": "desc"
+          }
+        },
+        "type": "object",
+        "title": "SortOption"
+      },
+      "StandardDashboardResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "title": "StandardDashboardResponse"
+      },
+      "TimeRange": {
+        "properties": {
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "title": "TimeRange"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
