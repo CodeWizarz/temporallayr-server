@@ -134,7 +134,7 @@ class IngestionService:
                 "Failed persisting batch cleanly via storage backend layer boundaries. Continuing to failure detection gracefully."
             )
 
-        from app.stream.manager import stream_manager
+        from app.stream.stream_manager import stream_manager_v2
         from app.rules.engine import rule_engine
 
         # Explicitly map execution anomaly engine structurally validating stored boundaries
@@ -167,6 +167,18 @@ class IngestionService:
                     print(
                         f"[RULE] triggered incident proactively logic='{result.rule.name}'"
                     )
+                    asyncio.create_task(
+                        stream_manager_v2.broadcast_event(
+                            event_payload["tenant_id"],
+                            {
+                                "type": "rule_triggered",
+                                "timestamp": event_payload.get(
+                                    "_ingested_at", datetime.utcnow().isoformat()
+                                ),
+                                "payload": rule_incident,
+                            },
+                        )
+                    )
             except asyncio.TimeoutError:
                 logger.error("[RULE] evaluation timeout bounds exceeded safe.")
             except Exception as e:
@@ -177,33 +189,32 @@ class IngestionService:
                 event_payload
             )
 
-            # Fire and forget realtime stream bindings natively executing independently
-            exec_id = (
-                event_payload.get("execution_id")
-                or event_payload.get("id")
-                or "unknown"
-            )
-            node_name = (
-                incident_data["node_name"]
-                if incident_data
-                else event_payload.get("node", "unknown")
-            )
-            is_incident = bool(incident_data)
-            status_val = "failure" if is_incident else "completed"
-
             # Use ingestion arrival times parsing correctly
             ts_str = event_payload.get("_ingested_at", datetime.utcnow().isoformat())
 
-            stream_event = {
-                "tenant_id": item.get("tenant_id"),
-                "timestamp": ts_str,
-                "execution_id": exec_id,
-                "node": node_name,
-                "status": status_val,
-                "incident_flag": is_incident,
-            }
-            # Unconditionally broadcast across real-time WebSockets isolated from core loops
-            asyncio.create_task(stream_manager.publish_event(stream_event))
+            # Unconditionally broadcast across real-time WebSockets isolated from core loops organically
+            asyncio.create_task(
+                stream_manager_v2.broadcast_event(
+                    item.get("tenant_id"),
+                    {
+                        "type": "execution_graph",
+                        "timestamp": ts_str,
+                        "payload": event_payload,
+                    },
+                )
+            )
+
+            if is_incident:
+                asyncio.create_task(
+                    stream_manager_v2.broadcast_event(
+                        item.get("tenant_id"),
+                        {
+                            "type": "incident_created",
+                            "timestamp": ts_str,
+                            "payload": incident_data,
+                        },
+                    )
+                )
 
             if incident_data:
                 exec_id = incident_data["execution_id"]
