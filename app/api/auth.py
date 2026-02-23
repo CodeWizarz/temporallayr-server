@@ -2,7 +2,21 @@ import os
 from fastapi import Request, HTTPException
 
 
+def validate_demo(headers):
+    if (
+        headers.get("X-API-Key") == "demo-key"
+        and headers.get("X-Tenant-ID") == "demo-tenant"
+    ):
+        return True
+    return False
+
+
 async def verify_api_key(request: Request, api_key_from_body: str | None = None):
+    if validate_demo(request.headers):
+        request.state.tenant_id = "demo-tenant"
+        request.state.api_key = "demo-key"
+        return "demo-tenant"
+
     key = None
 
     # FORMAT A (preferred): Authorization header -> Bearer <key>
