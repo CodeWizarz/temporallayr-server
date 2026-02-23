@@ -55,8 +55,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # allow all for demo
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Tenant-ID", "*"],
 )
 app.include_router(handshake_router)
 app.include_router(health_router)
@@ -98,5 +98,6 @@ async def global_exception_handler(request, exc):
 @app.on_event("startup")
 async def startup():
     print("SERVER STARTED — ROUTES LOADED")
+    print("TemporalLayr server started with demo tenant enabled")
     for route in app.routes:
         print(route.path)
