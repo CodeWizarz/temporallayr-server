@@ -1,10 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-import asyncio
 
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select, func, Float, String, and_
 from sqlalchemy.dialects.postgresql import JSONB
 
