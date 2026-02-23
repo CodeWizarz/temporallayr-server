@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.core.database import async_session_maker
 from app.models.event import Event, Incident
-from app.query.models import QueryRequest, QueryResult
+from app.query.models import MultiResourceQueryRequest, QueryResult
 
 logger = logging.getLogger("temporallayr.query.engine")
 
@@ -52,7 +52,7 @@ class QueryEngine:
 
         return results, is_partial
 
-    async def search_events(self, query: QueryRequest) -> QueryResult:
+    async def search_events(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Search execution trace payloads directly checking boundaries natively."""
         stmt = select(Event).where(Event.api_key == query.tenant_id)
 
@@ -106,7 +106,7 @@ class QueryEngine:
             data=data, total=len(data), partial=is_partial, warning=warning
         )
 
-    async def search_incidents(self, query: QueryRequest) -> QueryResult:
+    async def search_incidents(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Search alert traces explicitly mapped over anomalies natively."""
         stmt = select(Incident).where(Incident.tenant_id == query.tenant_id)
 
@@ -158,7 +158,7 @@ class QueryEngine:
             data=data, total=len(data), partial=is_partial, warning=warning
         )
 
-    async def search_nodes(self, query: QueryRequest) -> QueryResult:
+    async def search_nodes(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Isolated wrapper delegating to search_events but specifically requesting node extracts.
         For architectural purity, we filter events by node and extract matching nodes physically.
         """
@@ -187,7 +187,7 @@ class QueryEngine:
             warning=event_res.warning,
         )
 
-    async def search_clusters(self, query: QueryRequest) -> QueryResult:
+    async def search_clusters(self, query: MultiResourceQueryRequest) -> QueryResult:
         """Search execution metadata flags natively finding cluster aggregates."""
         # Clusters are derived natively over "attributes.cluster_id" mapped into the payload.
         stmt = select(Event).where(Event.api_key == query.tenant_id)
