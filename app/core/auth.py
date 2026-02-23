@@ -21,7 +21,6 @@ async def verify_api_key(
     if validate_demo(request.headers):
         request.state.tenant_id = "demo-tenant"
         request.state.api_key = "demo-key"
-        request.tenant = "demo-tenant"
         return "demo-tenant"
 
     if not authorization:
