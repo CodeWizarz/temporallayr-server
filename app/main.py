@@ -54,6 +54,10 @@ app.include_router(ingest.router, prefix="/v1")
 app.include_router(query.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")
 
+from app.api import stream
+
+app.include_router(stream.router, prefix="/v1")
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):

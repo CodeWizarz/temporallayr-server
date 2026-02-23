@@ -12,7 +12,7 @@ class IngestionService:
     def __init__(self, max_batch_size: int = 500, flush_interval: float = 2.0):
         self.max_batch_size = max_batch_size
         self.flush_interval = flush_interval
-        self._queue: asyncio.Queue = asyncio.Queue()
+        self._queue: asyncio.Queue | None = None
         self._worker_task: asyncio.Task | None = None
         self._is_running = False
         self._storage = StorageService(max_retries=3, base_delay=1.0)
@@ -20,6 +20,7 @@ class IngestionService:
     async def start(self):
         """Start the background ingestion worker."""
         if not self._is_running:
+            self._queue = asyncio.Queue()
             self._is_running = True
             logger.info("IngestionService background worker starting...")
             self._worker_task = asyncio.create_task(self._process_queue())
@@ -133,6 +134,8 @@ class IngestionService:
                 "Failed persisting batch cleanly via storage backend layer boundaries. Continuing to failure detection gracefully."
             )
 
+        from app.stream.manager import stream_manager
+
         # Explicitly map execution anomaly engine structurally validating stored boundaries
         for item in batch:
             event_payload = item.get("event", {})
@@ -141,6 +144,34 @@ class IngestionService:
                 event_payload["tenant_id"] = item.get("tenant_id")
 
             incident_data = await detect_execution_failure(event_payload)
+
+            # Fire and forget realtime stream bindings natively executing independently
+            exec_id = (
+                event_payload.get("execution_id")
+                or event_payload.get("id")
+                or "unknown"
+            )
+            node_name = (
+                incident_data["node_name"]
+                if incident_data
+                else event_payload.get("node", "unknown")
+            )
+            is_incident = bool(incident_data)
+            status_val = "failure" if is_incident else "completed"
+
+            # Use ingestion arrival times parsing correctly
+            ts_str = event_payload.get("_ingested_at", datetime.utcnow().isoformat())
+
+            stream_event = {
+                "tenant_id": item.get("tenant_id"),
+                "timestamp": ts_str,
+                "execution_id": exec_id,
+                "node": node_name,
+                "status": status_val,
+                "incident_flag": is_incident,
+            }
+            # Unconditionally broadcast across real-time WebSockets isolated from core loops
+            asyncio.create_task(stream_manager.publish_event(stream_event))
 
             if incident_data:
                 exec_id = incident_data["execution_id"]
