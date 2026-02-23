@@ -4,14 +4,23 @@ import os
 EXPECTED = os.getenv("TEMPORALLAYR_API_KEY", "dev-temporallayr-key")
 
 
+def validate_demo(headers):
+    if (
+        headers.get("X-API-Key") == "demo-key"
+        and headers.get("X-Tenant-ID") == "demo-tenant"
+    ):
+        return True
+    return False
+
+
 async def verify_api_key(
     request: Request,
     authorization: str | None = Header(default=None),
-    x_api_key: str | None = Header(default=None),
-    x_tenant_id: str | None = Header(default=None),
 ):
 
-    if x_api_key == "demo-key" and x_tenant_id == "demo-tenant":
+    if validate_demo(request.headers):
+        request.state.tenant_id = "demo-tenant"
+        request.state.api_key = "demo-key"
         request.tenant = "demo-tenant"
         return "demo-tenant"
 
