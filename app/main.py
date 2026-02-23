@@ -24,7 +24,8 @@ ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 
 
 import os
-from app.core.database import engine
+import time
+from sqlalchemy import create_engine
 
 
 @asynccontextmanager
@@ -32,7 +33,7 @@ async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
     logger.info("Initializing TemporalLayr Server components...")
 
-    # STEP 2 — PRINT ENV DEBUG AT STARTUP
+    # Print ENV debug at startup
     print("DB:", bool(os.getenv("DATABASE_URL")))
     print("API:", bool(os.getenv("API_KEY")))
     print("PORT:", os.getenv("PORT", "8000"))
@@ -41,20 +42,31 @@ async def lifespan(app: FastAPI):
     print("Query API ready")
     print("Stats API ready")
 
-    # STEP 3 — FORCE DATABASE CONNECT AT BOOT
-    try:
-        if not engine:
-            logger.error("Engine failed configuration mappings natively!")
-            sys.exit(1)
-        async with engine.begin() as conn:
-            # Just test the connection without doing anything
-            pass
-        logger.info("Database strictly connected on boot successfully.")
-    except Exception as e:
-        logger.error(
-            f"FATAL: Database connection failed during startup initialization: {e}"
-        )
-        sys.exit(1)
+    # Safe DB probe with retry — NEVER crash the server
+    _DATABASE_URL = os.getenv("DATABASE_URL")
+    _probe_engine = None
+
+    if _DATABASE_URL:
+        # Convert asyncpg URL to sync psycopg2 for the probe only
+        _sync_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
+        for i in range(10):
+            try:
+                _probe_engine = create_engine(_sync_url, pool_pre_ping=True)
+                conn = _probe_engine.connect()
+                conn.close()
+                _probe_engine.dispose()
+                print("Database connected")
+                logger.info("Database strictly connected on boot successfully.")
+                break
+            except Exception as e:
+                print("DB not ready, retrying...", e)
+                logger.warning(f"DB probe attempt {i + 1}/10 failed: {e}")
+                time.sleep(3)
+        else:
+            print("Database unavailable — continuing without crash")
+            logger.warning("Database unavailable after 10 attempts — server continues.")
+    else:
+        print("DATABASE_URL not set — skipping DB probe")
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
     await ingestion_service.start()
