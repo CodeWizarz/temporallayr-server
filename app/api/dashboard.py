@@ -134,3 +134,23 @@ async def get_dashboard(dashboard_id: str, api_key: str = Depends(verify_api_key
         raise HTTPException(status_code=404, detail="Dashboard not found")
 
     return dashboard_data
+
+
+@router_dash.get("/{dashboard_id}/run")
+async def run_dashboard_queries(
+    dashboard_id: str, api_key: str = Depends(verify_api_key)
+):
+    """Hydrates Front-End Dashboards comprehensively invoking organic background engines mapping async panels neatly over robust bounds!"""
+    tenant_id = api_key
+    from app.query.runtime import execute_dashboard
+
+    try:
+        execution_data = await execute_dashboard(
+            dashboard_id=dashboard_id, tenant_id=tenant_id
+        )
+        return execution_data
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[DASHBOARD RUN ERROR] dashboard={dashboard_id} error={str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Execution Frame Fault.")
