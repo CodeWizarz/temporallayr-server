@@ -106,18 +106,59 @@ async def search_executions(
     tenant_id = api_key
     print(f"[SEARCH] tenant={tenant_id} function={payload.function_name}")
 
-    from app.services.search import search_executions as do_search_executions
+    limit = payload.limit or 100
+    if limit > 1000:
+        limit = 1000
 
-    results = await do_search_executions(
-        tenant_id=tenant_id,
-        function_name=payload.function_name,
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        limit=payload.limit,
-        offset=payload.offset,
-    )
+    from app.core.database import async_session_maker
+    from sqlalchemy import select, text, desc
 
-    # Wrap in expected response dict shape
+    async with async_session_maker() as session:
+        from app.models.event import Event
+
+        stmt = select(Event).where(Event.tenant_id == tenant_id)
+
+        # Apply time boundaries naturally if specified natively
+        if payload.start_time:
+            stmt = stmt.where(Event.timestamp >= payload.start_time)
+        if payload.end_time:
+            stmt = stmt.where(Event.timestamp <= payload.end_time)
+
+        # Optional functional grouping via JSONB path extraction cleanly
+        if payload.function_name:
+            # Fast Postgres JSONB traversal
+            stmt = stmt.where(
+                Event.payload.op("->>")("function_name") == payload.function_name
+            )
+
+        # New Feature: Deep ILIKE full-text search bypassing ORM bounds mapping GIN
+        if hasattr(payload, "contains") and payload.contains:
+            contains_str = payload.contains.replace("'", "''")  # basic safety
+            # Cast JSONB to text natively scanning values safely leveraging structural extensions
+            stmt = stmt.where(text(f"payload::text ILIKE '%{contains_str}%'"))
+
+        # New Feature: Additional nested custom filter keys scanning safely
+        if hasattr(payload, "filters") and payload.filters:
+            for key, val in payload.filters.items():
+                if val is not None:
+                    stmt = stmt.where(Event.payload.op("->>")(key) == str(val))
+
+        # Dynamic extraction gracefully returning arrays natively sorted
+        stmt = stmt.order_by(desc(Event.timestamp)).limit(limit)
+
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+
+        results = [
+            {
+                "id": str(r.id),
+                "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+                "event_type": r.event_type,
+                "payload": r.payload,
+            }
+            for r in rows
+        ]
+
     return {"results": results}
 
 

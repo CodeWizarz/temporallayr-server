@@ -74,6 +74,14 @@ class SearchRequest(BaseModel):
     end_time: Optional[datetime] = Field(
         None, description="ISO8601 boundary ending constraints"
     )
+    contains: Optional[str] = Field(
+        None,
+        description="ILIKE raw text extraction safely mapping Postgres payloads natively",
+    )
+    filters: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Deep arbitrary JSONB metadata filters tracing schemas optimally",
+    )
     limit: int = Field(50, ge=1, le=1000, description="Pagination slicing maximums")
     offset: int = Field(0, ge=0, description="Pagination displacement slice offset")
 
