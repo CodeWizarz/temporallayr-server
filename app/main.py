@@ -58,12 +58,14 @@ from app.api import stream, rules
 from app.api.dashboard import router_dash as dashboard_router
 from app.api.dashboard import router_sq as saved_query_router
 from app.api.metrics import router as metrics_router
+from app.api.traces import router as traces_router
 
 app.include_router(stream.router, prefix="/v1")
 app.include_router(rules.router, prefix="/v1")
 app.include_router(dashboard_router)
 app.include_router(saved_query_router)
 app.include_router(metrics_router)
+app.include_router(traces_router)
 
 
 @app.exception_handler(Exception)
