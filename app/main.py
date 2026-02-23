@@ -54,9 +54,10 @@ app.include_router(ingest.router, prefix="/v1")
 app.include_router(query.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")
 
-from app.api import stream
+from app.api import stream, rules
 
 app.include_router(stream.router, prefix="/v1")
+app.include_router(rules.router, prefix="/v1")
 
 
 @app.exception_handler(Exception)

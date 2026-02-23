@@ -135,6 +135,7 @@ class IngestionService:
             )
 
         from app.stream.manager import stream_manager
+        from app.rules.engine import rule_engine
 
         # Explicitly map execution anomaly engine structurally validating stored boundaries
         for item in batch:
@@ -143,7 +144,38 @@ class IngestionService:
             if "tenant_id" not in event_payload and item.get("tenant_id"):
                 event_payload["tenant_id"] = item.get("tenant_id")
 
-            incident_data = await detect_execution_failure(event_payload)
+            # 1. Automatic Dynamic Detection Rules Engine (Enterprise Safety)
+            rule_incident = None
+            try:
+                # 50ms timeout bounds isolating main arrays completely safely from generic DB locks
+                result = await asyncio.wait_for(
+                    rule_engine.evaluate_event(event_payload), timeout=0.05
+                )
+                if result and result.rule.actions.create_incident:
+                    # Construct structural trace bridging engine maps organically
+                    rule_incident = {
+                        "tenant_id": event_payload["tenant_id"],
+                        "execution_id": event_payload.get("execution_id")
+                        or event_payload.get("id", "unknown"),
+                        "timestamp": event_payload.get(
+                            "_ingested_at", datetime.utcnow().isoformat()
+                        ),
+                        "failure_type": result.rule.condition.type,
+                        "node_name": event_payload.get("node", "analyzer"),
+                        "summary": f"Detected anomaly matching rule: {result.rule.name}",
+                    }
+                    print(
+                        f"[RULE] triggered incident proactively logic='{result.rule.name}'"
+                    )
+            except asyncio.TimeoutError:
+                logger.error("[RULE] evaluation timeout bounds exceeded safe.")
+            except Exception as e:
+                logger.error(f"[RULE] evaluation failed robustly natively: {e}")
+
+            # 2. Legacy Base Anomaly Extractor
+            incident_data = rule_incident or await detect_execution_failure(
+                event_payload
+            )
 
             # Fire and forget realtime stream bindings natively executing independently
             exec_id = (
