@@ -1,15 +1,24 @@
 import logging
 import sys
 import asyncio
-from contextlib import asynccontextmanager
-from contextlib import suppress
+import os
+import uvicorn
+from contextlib import asynccontextmanager, suppress
+
+import asyncpg
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.handshake import router as handshake_router
 from app.api.health import router as health_router
-from app.api import ingest, query, ws
+from app.api import ingest, query, ws, stream, rules
+from app.api.dashboard import router_dash as dashboard_router
+from app.api.dashboard import router_sq as saved_query_router
+from app.api.metrics import router as metrics_router
+from app.api.traces import router as traces_router
+from app.api.stats import router as stats_router
+from app.api.dashboard_api import router as dashboard_ext_router
 from app.core.middleware import RequestLoggingMiddleware
 from app.services.ingestion_service import IngestionService
 
@@ -23,10 +32,6 @@ logger = logging.getLogger("temporallayr.main")
 
 # Global singleton dependencies bindings initialized on app start boundaries
 ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
-
-
-import os
-import asyncpg
 
 
 async def _probe_database_with_retry(database_url: str) -> None:
@@ -128,15 +133,6 @@ app.include_router(health_router)
 app.include_router(ingest.router, prefix="/v1")
 app.include_router(query.router, prefix="/v1")
 app.include_router(ws.router, prefix="/v1")
-
-from app.api import stream, rules
-from app.api.dashboard import router_dash as dashboard_router
-from app.api.dashboard import router_sq as saved_query_router
-from app.api.metrics import router as metrics_router
-from app.api.traces import router as traces_router
-from app.api.stats import router as stats_router
-from app.api.dashboard_api import router as dashboard_ext_router
-
 app.include_router(stream.router, prefix="/v1")
 app.include_router(rules.router, prefix="/v1")
 app.include_router(dashboard_router)
@@ -168,7 +164,5 @@ async def startup():
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
