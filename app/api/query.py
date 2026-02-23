@@ -78,8 +78,6 @@ async def query_analytics(
             # Propagate strict bounding faults natively cleanly converting specific string payloads
             if result["error"] == "query timeout":
                 return result
-            from fastapi import HTTPException
-
             raise HTTPException(status_code=500, detail=result["error"])
 
         # Returns native output format correctly: {"results": [...], "count": int}
