@@ -3,8 +3,8 @@ import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
-
+from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, func, text, desc, cast, Float, Integer
 
 from app.api.auth import verify_api_key
@@ -400,8 +400,6 @@ async def wrapper_durations(
                 ),
                 Float,
             )
-
-            from sqlalchemy import text
 
             stmt = (
                 select(

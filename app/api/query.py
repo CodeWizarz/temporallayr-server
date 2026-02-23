@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 
 from app.models.query import (
     QueryPayload,
@@ -78,6 +78,8 @@ async def query_analytics(
             # Propagate strict bounding faults natively cleanly converting specific string payloads
             if result["error"] == "query timeout":
                 return result
+            from fastapi import HTTPException
+
             raise HTTPException(status_code=500, detail=result["error"])
 
         # Returns native output format correctly: {"results": [...], "count": int}
@@ -205,8 +207,6 @@ async def create_alert(
     api_key: str = Depends(verify_api_key),
     storage=Depends(get_storage_service),
 ):
-    from fastapi import HTTPException
-
     try:
         tenant_id = api_key
         webhook_str = str(payload.webhook_url) if payload.webhook_url else None
