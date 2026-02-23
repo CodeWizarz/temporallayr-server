@@ -59,12 +59,25 @@ async def query_executions(
     """
     Execution search grouping querying execution strings dynamically over constrained bounds cleanly.
     """
+    from fastapi import HTTPException
+    from app.query.parser import parse_query
+    from app.query.engine import run_query
+
     tenant_id = api_key
 
-    results = await storage.search_executions_by_query(
-        tenant_id=tenant_id, query_str=payload.query, limit=payload.limit
+    # 1. parse query string
+    try:
+        parsed_ast = parse_query(payload.query)
+    except ValueError as e:
+        # If parse error -> return 400 JSON error
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # 2. run query engine
+    results = await run_query(
+        parsed_query=parsed_ast, tenant_id=tenant_id, limit=payload.limit
     )
 
+    # 3. return results
     return ExecutionQueryResponse(results=results)
 
 
