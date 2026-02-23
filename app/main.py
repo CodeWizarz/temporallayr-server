@@ -2,6 +2,7 @@ import logging
 import sys
 import asyncio
 from contextlib import asynccontextmanager
+from contextlib import suppress
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -28,6 +29,28 @@ import os
 import asyncpg
 
 
+async def _probe_database_with_retry(database_url: str) -> None:
+    """Attempt DB connectivity in the background so app startup remains fast."""
+    _asyncpg_url = database_url.replace("postgresql+asyncpg", "postgresql")
+    for i in range(10):
+        conn = None
+        try:
+            conn = await asyncpg.connect(_asyncpg_url, timeout=5)
+            logger.info("Database strictly connected on boot successfully.")
+            print("Database connected")
+            return
+        except Exception as e:
+            print("DB not ready, retrying...", e)
+            logger.warning(f"DB probe attempt {i + 1}/10 failed: {e}")
+            await asyncio.sleep(3)
+        finally:
+            if conn is not None:
+                await conn.close()
+
+    print("Database unavailable — continuing without crash")
+    logger.warning("Database unavailable after 10 attempts — server continues.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
@@ -42,26 +65,13 @@ async def lifespan(app: FastAPI):
     print("Query API ready")
     print("Stats API ready")
 
-    # Safe DB probe with retry — NEVER crash the server
+    # Launch DB probe in background so readiness endpoint can answer immediately.
     _DATABASE_URL = os.getenv("DATABASE_URL")
-    _probe_engine = None
-
+    app.state.db_probe_task = None
     if _DATABASE_URL:
-        _asyncpg_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
-        for i in range(10):
-            try:
-                _probe_engine = await asyncpg.connect(_asyncpg_url, timeout=5)
-                await _probe_engine.close()
-                print("Database connected")
-                logger.info("Database strictly connected on boot successfully.")
-                break
-            except Exception as e:
-                print("DB not ready, retrying...", e)
-                logger.warning(f"DB probe attempt {i + 1}/10 failed: {e}")
-                await asyncio.sleep(3)
-        else:
-            print("Database unavailable — continuing without crash")
-            logger.warning("Database unavailable after 10 attempts — server continues.")
+        app.state.db_probe_task = asyncio.create_task(
+            _probe_database_with_retry(_DATABASE_URL)
+        )
     else:
         print("DATABASE_URL not set — skipping DB probe")
 
@@ -74,6 +84,12 @@ async def lifespan(app: FastAPI):
 
     # Disconnect generic background instances mapping queue grace delays robustly
     await ingestion_service.stop()
+
+    db_probe_task = getattr(app.state, "db_probe_task", None)
+    if db_probe_task and not db_probe_task.done():
+        db_probe_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await db_probe_task
 
 
 app = FastAPI(
