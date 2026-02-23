@@ -23,7 +23,7 @@ class QueryFilters(BaseModel):
     time_range: Optional[TimeRange] = None
 
 
-class QueryRequest(BaseModel):
+class MultiResourceQueryRequest(BaseModel):
     tenant_id: str = ""
     filters: QueryFilters = Field(default_factory=QueryFilters)
     search_text: Optional[str] = None
@@ -37,3 +37,14 @@ class QueryResult(BaseModel):
     total: int
     partial: bool = False
     warning: Optional[str] = None
+
+
+class QueryRequest(BaseModel):
+    tenant_id: str = ""
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    fingerprint: Optional[str] = None
+    event_type: Optional[str] = None
+    limit: int = Field(default=100)
+    offset: int = Field(default=0)
+    sort: Literal["asc", "desc"] = "desc"

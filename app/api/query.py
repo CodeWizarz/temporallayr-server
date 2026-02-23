@@ -6,9 +6,9 @@ from app.models.query import (
     DiffPayload,
     SearchRequest,
     CreateAlertRequest,
-    ExecutionQueryRequest,
-    ExecutionQueryResponse,
 )
+
+from app.query.models import QueryRequest
 
 from app.api.auth import verify_api_key
 
@@ -50,35 +50,34 @@ async def query_telemetry_history(
     return QueryResponse(events=events)
 
 
-@router.post("/query", response_model=ExecutionQueryResponse, status_code=200)
-async def query_executions(
-    payload: ExecutionQueryRequest,
+@router.post("/query", status_code=200)
+async def query_analytics(
+    payload: QueryRequest,
     api_key: str = Depends(verify_api_key),
     storage=Depends(get_storage_service),
 ):
     """
-    Execution search grouping querying execution strings dynamically over constrained bounds cleanly.
+    Production Analytics execution query exposing structural aggregations dynamically bounds safely.
     """
     from fastapi import HTTPException
-    from app.query.parser import parse_query
-    from app.query.engine import run_query
+    from app.query.service import query_events
 
-    tenant_id = api_key
+    payload.tenant_id = api_key
 
-    # 1. parse query string
-    try:
-        parsed_ast = parse_query(payload.query)
-    except ValueError as e:
-        # If parse error -> return 400 JSON error
-        raise HTTPException(status_code=400, detail=str(e))
+    # Restrict enterprise queries over 1000 dynamically to protect DB overhead natively
+    if payload.limit > 1000:
+        raise HTTPException(status_code=400, detail="Limit cannot exceed 1000")
 
-    # 2. run query engine
-    results = await run_query(
-        parsed_query=parsed_ast, tenant_id=tenant_id, limit=payload.limit
-    )
+    result = await query_events(payload, storage_engine=storage)
 
-    # 3. return results
-    return ExecutionQueryResponse(results=results)
+    if "error" in result:
+        # Propagate strict bounding faults natively cleanly converting specific string payloads
+        if result["error"] == "query timeout":
+            return result
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    # Returns native output format correctly: {"results": [...], "count": int}
+    return result
 
 
 @router.get("/executions")

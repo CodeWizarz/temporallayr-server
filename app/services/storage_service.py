@@ -145,6 +145,59 @@ class StorageService:
             logger.error(f"Failed extracting tenant query payload bounds natively: {e}")
             return []
 
+    async def query_analytics_events(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        fingerprint: str | None = None,
+        event_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        sort: str = "desc",
+    ):
+        """Production Query execution mapped organically blocking limits securely mapping complex nested objects."""
+        from sqlalchemy import select
+
+        if not async_session_maker:
+            logger.warning(
+                "Database offline. Returning mocked simulated search arrays safely."
+            )
+            # Simulated offline boundaries testing logic directly
+            return [{"tenant_id": tenant_id, "mock": True}]
+
+        stmt = select(Event.payload).where(Event.api_key == tenant_id)
+
+        # Apply strict query filters mappings naturally without hardcoding nested fields destructively
+        if start_time:
+            stmt = stmt.where(Event.timestamp >= start_time)
+        if end_time:
+            stmt = stmt.where(Event.timestamp <= end_time)
+
+        # Extract dynamic JSON queries matching bounds efficiently
+        if fingerprint:
+            # PostgreSQL JSONB operator '->>' retrieves string organically
+            stmt = stmt.where(Event.payload["fingerprint"].astext == fingerprint)
+        if event_type:
+            stmt = stmt.where(Event.payload["type"].astext == event_type)
+
+        # Sorting
+        if sort == "asc":
+            stmt = stmt.order_by(Event.timestamp.asc())
+        else:
+            stmt = stmt.order_by(Event.timestamp.desc())
+
+        stmt = stmt.limit(limit).offset(offset)
+
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(stmt)
+                # Unpack internal mapping objects
+                return [row for row in result.scalars()]
+        except SQLAlchemyError as e:
+            logger.error(f"Failed extracting tenant query bounds dynamically: {e}")
+            return []
+
     async def search_executions_by_query(
         self, tenant_id: str, query_str: str, limit: int = 50
     ) -> List[Dict[str, Any]]:
