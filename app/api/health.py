@@ -1,7 +1,5 @@
 import os
-
 import asyncio
-
 import asyncpg
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -24,7 +22,6 @@ async def health_check():
             return {"status": "ok", "db": "not configured"}
 
         _asyncpg_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
-
         _conn = None
         try:
             _conn = await asyncio.wait_for(asyncpg.connect(_asyncpg_url, timeout=5), timeout=6)
@@ -32,11 +29,6 @@ async def health_check():
         finally:
             if _conn is not None:
                 await _conn.close()
-
-        _conn = await asyncpg.connect(_asyncpg_url, timeout=5)
-        await _conn.execute("SELECT 1")
-        await _conn.close()
-
         return {"status": "ok", "db": "connected"}
     except Exception:
         return JSONResponse(
