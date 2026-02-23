@@ -1,7 +1,7 @@
 import os
+import asyncpg
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine, text
 
 router = APIRouter(tags=["Monitoring"])
 
@@ -14,16 +14,10 @@ async def health_check():
         if not _DATABASE_URL:
             return {"status": "ok", "db": "not configured"}
 
-        _sync_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
-        _engine = create_engine(
-            _sync_url,
-            pool_pre_ping=True,
-            pool_timeout=5,
-            connect_args={"connect_timeout": 5},
-        )
-        with _engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        _engine.dispose()
+        _asyncpg_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
+        _conn = await asyncpg.connect(_asyncpg_url, timeout=5)
+        await _conn.execute("SELECT 1")
+        await _conn.close()
         return {"status": "ok", "db": "connected"}
     except Exception:
         return JSONResponse(
