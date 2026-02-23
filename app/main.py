@@ -1,7 +1,7 @@
 import logging
 import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -50,6 +50,20 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+
+
+@app.middleware("http")
+async def demo_mode_query_injector(request: Request, call_next):
+    if (
+        request.headers.get("x-api-key") == "demo-key"
+        and request.headers.get("x-tenant-id") == "demo-tenant"
+    ):
+        qs = request.scope.get("query_string", b"").decode()
+        if "tenant_id=" not in qs:
+            new_qs = qs + ("&" if qs else "") + "tenant_id=demo-tenant"
+            request.scope["query_string"] = new_qs.encode()
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
