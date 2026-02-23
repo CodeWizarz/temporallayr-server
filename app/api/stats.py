@@ -50,28 +50,35 @@ async def time_bucket_engine(
         f"Executing Time Bucket Engine bounds over {payload.group_by} natively mapping fast queries!"
     )
 
-    async with async_session_maker() as session:
-        # Construct raw SQL aggregate query securely scaling dynamically
-        bucket = func.date_trunc(payload.group_by, Event.timestamp).label("time_bucket")
-
-        stmt = (
-            select(bucket, func.count().label("count"))
-            .where(
-                Event.tenant_id == payload.tenant_id,
-                Event.event_type == payload.metric,
-                Event.timestamp >= payload.from_time,
-                Event.timestamp <= payload.to_time,
+    try:
+        async with async_session_maker() as session:
+            # Construct raw SQL aggregate query securely scaling dynamically
+            bucket = func.date_trunc(payload.group_by, Event.timestamp).label(
+                "time_bucket"
             )
-            .group_by(bucket)
-            .order_by(bucket.asc())
-        )
 
-        result = await session.execute(stmt)
-        rows = result.all()
+            stmt = (
+                select(bucket, func.count().label("count"))
+                .where(
+                    Event.tenant_id == payload.tenant_id,
+                    Event.event_type == payload.metric,
+                    Event.timestamp >= payload.from_time,
+                    Event.timestamp <= payload.to_time,
+                )
+                .group_by(bucket)
+                .order_by(bucket.asc())
+            )
 
-        return [
-            {"time": row.time_bucket.isoformat(), "count": row.count} for row in rows
-        ]
+            result = await session.execute(stmt)
+            rows = result.all()
+
+            return [
+                {"time": row.time_bucket.isoformat(), "count": row.count}
+                for row in rows
+            ]
+    except Exception as e:
+        logger.error(f"[STATS] Error in time_bucket_engine: {str(e)}")
+        return []
 
 
 @router.get("/stats/top-functions")
@@ -89,11 +96,11 @@ async def get_top_functions(
             status_code=403, detail="Tenant mismatch securely forbidden!"
         )
 
-    async with async_session_maker() as session:
-        # Natively parse deeply nested JSON matrices cleanly counting instances over payload arrays
-        # Use postgres JSONB element unfolding mapping cleanly
-        # 'func.jsonb_array_elements' splits 'nodes' array natively securely bounding
-        try:
+    try:
+        async with async_session_maker() as session:
+            # Natively parse deeply nested JSON matrices cleanly counting instances over payload arrays
+            # Use postgres JSONB element unfolding mapping cleanly
+            # 'func.jsonb_array_elements' splits 'nodes' array natively securely bounding
             nodes_element = func.jsonb_array_elements(Event.payload["nodes"]).alias(
                 "node"
             )
@@ -121,10 +128,10 @@ async def get_top_functions(
                 for row in result.all()
                 if row.name is not None
             ]
-        except Exception as e:
-            logger.error(f"[STATS] Error processing top functions {str(e)}")
-            # Fallback parsing strategy using simpler SQL structure gracefully
-            return []
+    except Exception as e:
+        logger.error(f"[STATS] Error processing top functions {str(e)}")
+        # Fallback parsing strategy using simpler SQL structure gracefully
+        return []
 
 
 @router.get("/stats/errors")
@@ -140,23 +147,27 @@ async def get_error_rate(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
         )
 
-    async with async_session_maker() as session:
-        # Track counts via single fast aggregation
-        stmt = select(
-            func.count().label("total_events"),
-            func.count(
-                func.nullif(Event.payload.op("->>")("status") != "FAILED", True)
-            ).label("error_events"),
-        ).where(Event.tenant_id == tenant_id, Event.event_type == "execution_graph")
+    try:
+        async with async_session_maker() as session:
+            # Track counts via single fast aggregation
+            stmt = select(
+                func.count().label("total_events"),
+                func.count(
+                    func.nullif(Event.payload.op("->>")("status") != "FAILED", True)
+                ).label("error_events"),
+            ).where(Event.tenant_id == tenant_id, Event.event_type == "execution_graph")
 
-        result = await session.execute(stmt)
-        row = result.first()
+            result = await session.execute(stmt)
+            row = result.first()
 
-        total = row.total_events or 0
-        errors = row.error_events or 0
-        rate = round(errors / total, 3) if total > 0 else 0.0
+            total = row.total_events or 0
+            errors = row.error_events or 0
+            rate = round(errors / total, 3) if total > 0 else 0.0
 
-        return {"total_events": total, "error_events": errors, "error_rate": rate}
+            return {"total_events": total, "error_events": errors, "error_rate": rate}
+    except Exception as e:
+        logger.error(f"[STATS] Error in get_error_rate: {str(e)}")
+        return {"total_events": 0, "error_events": 0, "error_rate": 0.0}
 
 
 @router.get("/stats/durations")
@@ -173,8 +184,8 @@ async def get_durations(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
         )
 
-    async with async_session_maker() as session:
-        try:
+    try:
+        async with async_session_maker() as session:
             nodes_element = func.jsonb_array_elements(Event.payload["nodes"]).alias(
                 "node"
             )
@@ -224,13 +235,13 @@ async def get_durations(
                 "p95_duration_ms": round_safe(row.p95_duration_ms),
                 "max_duration_ms": round_safe(row.max_duration_ms),
             }
-        except Exception as e:
-            logger.error(f"[STATS] Error processing durations {str(e)}")
-            return {
-                "avg_duration_ms": 0.0,
-                "p95_duration_ms": 0.0,
-                "max_duration_ms": 0.0,
-            }
+    except Exception as e:
+        logger.error(f"[STATS] Error processing durations {str(e)}")
+        return {
+            "avg_duration_ms": 0.0,
+            "p95_duration_ms": 0.0,
+            "max_duration_ms": 0.0,
+        }
 
 
 @router.get("/overview")
@@ -249,8 +260,8 @@ async def get_overview(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
         )
 
-    async with async_session_maker() as session:
-        try:
+    try:
+        async with async_session_maker() as session:
             # Optimize extracting fast aggregated bounding without subqueries.
             # PostGres conditional SUM mappings gracefully fetch multi-bound metrics.
             from sqlalchemy import cast, Integer, text
@@ -288,14 +299,14 @@ async def get_overview(
                 if row.last_event_timestamp
                 else None,
             }
-        except Exception as e:
-            logger.error(f"[STATS] Error processing overview {str(e)}")
-            return {
-                "events_last_1h": 0,
-                "events_last_24h": 0,
-                "unique_functions": 0,
-                "last_event_timestamp": None,
-            }
+    except Exception as e:
+        logger.error(f"[STATS] Error processing overview {str(e)}")
+        return {
+            "events_last_1h": 0,
+            "events_last_24h": 0,
+            "unique_functions": 0,
+            "last_event_timestamp": None,
+        }
 
 
 @router.get("/schema")
@@ -312,35 +323,41 @@ async def get_schema(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
         )
 
-    async with async_session_maker() as session:
-        # Extract native backend payload rows raw limiting overhead
-        stmt = (
-            select(Event.payload)
-            .where(Event.tenant_id == tenant_id, Event.event_type == "execution_graph")
-            .order_by(Event.timestamp.desc())
-            .limit(100)
-        )
+    try:
+        async with async_session_maker() as session:
+            # Extract native backend payload rows raw limiting overhead
+            stmt = (
+                select(Event.payload)
+                .where(
+                    Event.tenant_id == tenant_id, Event.event_type == "execution_graph"
+                )
+                .order_by(Event.timestamp.desc())
+                .limit(100)
+            )
 
-        result = await session.execute(stmt)
-        payloads = result.scalars().all()
+            result = await session.execute(stmt)
+            payloads = result.scalars().all()
 
-        # Fast iterative recursive flattening gracefully bounds in memory across small lists correctly
-        unique_paths = set()
+            # Fast iterative recursive flattening gracefully bounds in memory across small lists correctly
+            unique_paths = set()
 
-        def flatten_json(obj, parent_key=""):
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    key = f"{parent_key}.{k}" if parent_key else k
-                    flatten_json(v, key)
-            elif isinstance(obj, list) and obj:
-                # Handle matrix objects via mapping generic arrays natively: "graph.nodes.*.name"
-                for item in obj:
-                    key = f"{parent_key}.*" if parent_key else "*"
-                    flatten_json(item, key)
-            else:
-                unique_paths.add(parent_key)
+            def flatten_json(obj, parent_key=""):
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        key = f"{parent_key}.{k}" if parent_key else k
+                        flatten_json(v, key)
+                elif isinstance(obj, list) and obj:
+                    # Handle matrix objects via mapping generic arrays natively: "graph.nodes.*.name"
+                    for item in obj:
+                        key = f"{parent_key}.*" if parent_key else "*"
+                        flatten_json(item, key)
+                else:
+                    unique_paths.add(parent_key)
 
-        for payload in payloads:
-            flatten_json(payload)
+            for payload in payloads:
+                flatten_json(payload)
 
-        return {"fields": sorted(list(unique_paths))}
+            return {"fields": sorted(list(unique_paths))}
+    except Exception as e:
+        logger.error(f"[STATS] Error in get_schema: {str(e)}")
+        return {"fields": []}
