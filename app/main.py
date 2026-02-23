@@ -1,5 +1,6 @@
 import logging
 import sys
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,8 +25,7 @@ ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 
 
 import os
-import time
-from sqlalchemy import create_engine
+import asyncpg
 
 
 @asynccontextmanager
@@ -47,21 +47,18 @@ async def lifespan(app: FastAPI):
     _probe_engine = None
 
     if _DATABASE_URL:
-        # Convert asyncpg URL to sync psycopg2 for the probe only
-        _sync_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
+        _asyncpg_url = _DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
         for i in range(10):
             try:
-                _probe_engine = create_engine(_sync_url, pool_pre_ping=True)
-                conn = _probe_engine.connect()
-                conn.close()
-                _probe_engine.dispose()
+                _probe_engine = await asyncpg.connect(_asyncpg_url, timeout=5)
+                await _probe_engine.close()
                 print("Database connected")
                 logger.info("Database strictly connected on boot successfully.")
                 break
             except Exception as e:
                 print("DB not ready, retrying...", e)
                 logger.warning(f"DB probe attempt {i + 1}/10 failed: {e}")
-                time.sleep(3)
+                await asyncio.sleep(3)
         else:
             print("Database unavailable — continuing without crash")
             logger.warning("Database unavailable after 10 attempts — server continues.")
