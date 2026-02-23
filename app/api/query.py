@@ -391,3 +391,49 @@ async def get_execution_timeline(
         timeline.append(event)
 
     return {"execution_id": execution_id, "timeline": timeline}
+
+
+# --- Advanced Multi-Resource Query Engine Endpoints ---
+
+from app.query.models import QueryRequest, QueryResult
+from app.query.engine import query_engine
+
+
+@router.post("/query/events", response_model=QueryResult)
+async def api_query_events(
+    payload: QueryRequest,
+    api_key: str = Depends(verify_api_key),
+):
+    """Scan and fetch real-time traces via dynamic JSON filtering structures."""
+    payload.tenant_id = api_key
+    return await query_engine.search_events(payload)
+
+
+@router.post("/query/incidents", response_model=QueryResult)
+async def api_query_incidents(
+    payload: QueryRequest,
+    api_key: str = Depends(verify_api_key),
+):
+    """Scan alert mappings natively fetching anomalies securely."""
+    payload.tenant_id = api_key
+    return await query_engine.search_incidents(payload)
+
+
+@router.post("/query/clusters", response_model=QueryResult)
+async def api_query_clusters(
+    payload: QueryRequest,
+    api_key: str = Depends(verify_api_key),
+):
+    """Resolve bounds fetching topological aggregates dynamically."""
+    payload.tenant_id = api_key
+    return await query_engine.search_clusters(payload)
+
+
+@router.post("/query/nodes", response_model=QueryResult)
+async def api_query_nodes(
+    payload: QueryRequest,
+    api_key: str = Depends(verify_api_key),
+):
+    """Extract individual JSONB leaf structures spanning deep graph traces."""
+    payload.tenant_id = api_key
+    return await query_engine.search_nodes(payload)

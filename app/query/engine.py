@@ -1,111 +1,219 @@
+import asyncio
+import time
 import logging
-from typing import List, Dict, Any
-from sqlalchemy import select, asc, desc
+from typing import List, Dict, Any, Tuple
+from sqlalchemy.future import select
+from sqlalchemy import or_, and_, asc, desc, cast, String
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.core.database import async_session_maker
-from app.models.event import Event
-from app.query.parser import QueryAST, Operator
+from app.models.event import Event, Incident
+from app.query.models import QueryRequest, QueryResult
 
 logger = logging.getLogger("temporallayr.query.engine")
 
 
-async def run_query(
-    parsed_query: QueryAST, tenant_id: str, limit: int = 50
-) -> List[Dict[str, Any]]:
-    """
-    Executes a parsed query against the Event payload JSONB store safely and efficiently.
-    Always filters by tenant_id. Enforces a maximum limit of 500.
-    """
-    print("[QUERY ENGINE] executed")
+class QueryEngine:
+    """Enterprise Query Engine with strict timeout safeguards binding multitenant queries natively."""
 
-    # Enforce hard limits on DB extraction
-    effective_limit = min(limit, 500)
+    def __init__(self, default_timeout: float = 2.0, max_limit: int = 5000):
+        self.default_timeout = default_timeout
+        self.max_limit = max_limit
 
-    if not async_session_maker:
-        logger.warning("Database offline. Returning mocked payload array.")
-        return []
+    async def _execute_with_safeguards(
+        self, stmt, limit: int
+    ) -> Tuple[List[Any], bool]:
+        """Runs structurally complex SQL natively trapping timeouts accurately preserving app stability."""
+        actual_limit = min(limit, self.max_limit)
+        stmt = stmt.limit(actual_limit)
 
-    stmt = select(Event.payload).where(Event.api_key == tenant_id)
+        start_time = time.time()
+        is_partial = False
+        results = []
 
-    # Translate conditions into SQLAlchemy filters securely mapped onto JSONB payloads
-    for cond in parsed_query.conditions:
-        field = cond.field
-        op = cond.operator
-        val = cond.value
-
-        # Cast numeric types if appropriate
         try:
-            val_float = float(val)
-            val_int = int(val)
-            is_numeric = (
-                str(val_float) == str(val)
-                or str(val_int) == str(val)
-                or "." in str(val)
+            async with async_session_maker() as session:
+                task = asyncio.create_task(session.execute(stmt))
+                result = await asyncio.wait_for(task, timeout=self.default_timeout)
+                results = list(result.scalars().all())
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[QUERY] Execution timeout safely bounded returning empty flags organically."
             )
-        except ValueError:
-            is_numeric = False
+            is_partial = True
+        except Exception as e:
+            logger.error(f"[QUERY] Execution failed natively safely: {e}")
+            is_partial = True
 
-        json_field = Event.payload[field]
+        duration = time.time() - start_time
+        if duration > 1.0:
+            logger.warning(f"[QUERY] slow query detected >1s (took {duration:.2f}s)")
 
-        if op == Operator.EQ:
-            stmt = stmt.where(json_field.as_string() == str(val))
-        elif op == Operator.NEQ:
-            stmt = stmt.where(json_field.as_string() != str(val))
-        elif op == Operator.GT:
-            if is_numeric:
-                # It's cleaner to compare strings in jsonb for date strings vs casting to floats
-                try:
-                    stmt = stmt.where(json_field.as_float() > float(val))
-                except Exception:
-                    stmt = stmt.where(json_field.as_string() > str(val))
+        return results, is_partial
+
+    async def search_events(self, query: QueryRequest) -> QueryResult:
+        """Search execution trace payloads directly checking boundaries natively."""
+        stmt = select(Event).where(Event.api_key == query.tenant_id)
+
+        # Apply strict query boundaries natively
+        filters = query.filters
+        if filters.execution_id:
+            stmt = stmt.where(
+                Event.payload.op("->>")("execution_id") == filters.execution_id
+            )
+        if filters.status:
+            stmt = stmt.where(Event.payload.op("->>")("status") == filters.status)
+        if filters.time_range:
+            if filters.time_range.start:
+                stmt = stmt.where(Event.timestamp >= filters.time_range.start)
+            if filters.time_range.end:
+                stmt = stmt.where(Event.timestamp <= filters.time_range.end)
+
+        if query.search_text:
+            text_filter = f"%{query.search_text}%"
+            # Full text ILIKE match across the JSON payload dynamically
+            stmt = stmt.where(cast(Event.payload, String).ilike(text_filter))
+
+        # Node specific mapping (JSONB "@>") natively
+        if filters.node_name:
+            # Match executions dynamically containing a node named X
+            node_match = [{"name": filters.node_name}]
+            # We query if payload->'graph'->'nodes' contains this dict natively
+            stmt = stmt.where(Event.payload["graph"]["nodes"].contains(node_match))
+
+        # Apply sort boundaries natively
+        if query.sort.field == "timestamp":
+            if query.sort.direction == "desc":
+                stmt = stmt.order_by(Event.timestamp.desc())
             else:
-                stmt = stmt.where(json_field.as_string() > str(val))
-        elif op == Operator.LT:
-            if is_numeric:
-                try:
-                    stmt = stmt.where(json_field.as_float() < float(val))
-                except Exception:
-                    stmt = stmt.where(json_field.as_string() < str(val))
-            else:
-                stmt = stmt.where(json_field.as_string() < str(val))
+                stmt = stmt.order_by(Event.timestamp.asc())
 
-    stmt = stmt.order_by(Event.timestamp.desc()).limit(effective_limit)
+        stmt = stmt.offset(query.offset)
 
-    executions = []
-    try:
-        async with async_session_maker() as session:
-            result = await session.execute(stmt)
-            for payload in result.scalars():
-                if not payload:
+        results, is_partial = await self._execute_with_safeguards(stmt, query.limit)
+
+        logger.info(f"[QUERY] tenant={query.tenant_id} rows={len(results)}")
+        warning = (
+            "Partial results returned due to heavy query limits."
+            if is_partial
+            else None
+        )
+
+        # Hydrate JSON explicitly avoiding Pydantic ORM strict serialization issues
+        data = [r.payload for r in results]
+        return QueryResult(
+            data=data, total=len(data), partial=is_partial, warning=warning
+        )
+
+    async def search_incidents(self, query: QueryRequest) -> QueryResult:
+        """Search alert traces explicitly mapped over anomalies natively."""
+        stmt = select(Incident).where(Incident.tenant_id == query.tenant_id)
+
+        filters = query.filters
+        if filters.incident_id:
+            stmt = stmt.where(cast(Incident.id, String) == filters.incident_id)
+        if filters.execution_id:
+            stmt = stmt.where(Incident.execution_id == filters.execution_id)
+        if filters.node_name:
+            stmt = stmt.where(Incident.node_name == filters.node_name)
+        if filters.fingerprint:
+            stmt = stmt.where(Incident.fingerprint == filters.fingerprint)
+
+        if filters.time_range:
+            if filters.time_range.start:
+                stmt = stmt.where(Incident.timestamp >= filters.time_range.start)
+            if filters.time_range.end:
+                stmt = stmt.where(Incident.timestamp <= filters.time_range.end)
+
+        if query.search_text:
+            stmt = stmt.where(Incident.summary.ilike(f"%{query.search_text}%"))
+
+        if query.sort.direction == "desc":
+            stmt = stmt.order_by(Incident.timestamp.desc())
+        else:
+            stmt = stmt.order_by(Incident.timestamp.asc())
+
+        stmt = stmt.offset(query.offset)
+
+        results, is_partial = await self._execute_with_safeguards(stmt, query.limit)
+        logger.info(f"[QUERY] tenant={query.tenant_id} rows={len(results)}")
+
+        data = [
+            {
+                "id": str(r.id),
+                "execution_id": r.execution_id,
+                "timestamp": r.timestamp.isoformat(),
+                "failure_type": r.failure_type,
+                "node_name": r.node_name,
+                "summary": r.summary,
+                "fingerprint": r.fingerprint,
+                "occurrence_count": r.occurrence_count,
+            }
+            for r in results
+        ]
+
+        warning = "Partial results returned natively." if is_partial else None
+        return QueryResult(
+            data=data, total=len(data), partial=is_partial, warning=warning
+        )
+
+    async def search_nodes(self, query: QueryRequest) -> QueryResult:
+        """Isolated wrapper delegating to search_events but specifically requesting node extracts.
+        For architectural purity, we filter events by node and extract matching nodes physically.
+        """
+        # We parse the base executions and extract nodes explicitly bounding in memory to simulate
+        # complex PostgreSQL lateral joins without destabilizing bounds organically.
+        event_res = await self.search_events(query)
+
+        extracted_nodes = []
+        for ev in event_res.data:
+            nodes = ev.get("graph", {}).get("nodes", [])
+            for n in nodes:
+                # Apply text search explicitly if it wasn't caught safely
+                if query.filters.node_name and n.get("name") != query.filters.node_name:
                     continue
-                # Extract specifically requested fields cleanly bounding allocations safely
-                exec_id = payload.get("execution_id") or payload.get("id") or "unknown"
-                timestamp = (
-                    payload.get("_ingested_at") or payload.get("timestamp") or ""
-                )
+                extracted_nodes.append(n)
+                if len(extracted_nodes) >= min(query.limit, self.max_limit):
+                    break
+            if len(extracted_nodes) >= min(query.limit, self.max_limit):
+                break
 
-                # Best-effort node extraction defensively parsing topologies natively
-                root_node = "unknown"
-                nodes = payload.get("nodes", [])
-                if nodes and isinstance(nodes, list):
-                    # Try to find a node with no parent_id or an empty parent_id
-                    for n in nodes:
-                        if isinstance(n, dict) and not n.get("parent_id"):
-                            root_node = n.get("name", "unknown")
-                            break
-                    if root_node == "unknown" and isinstance(nodes[0], dict):
-                        root_node = nodes[0].get("name", "unknown")
+        logger.info(f"[QUERY] tenant={query.tenant_id} rows={len(extracted_nodes)}")
+        return QueryResult(
+            data=extracted_nodes,
+            total=len(extracted_nodes),
+            partial=event_res.partial,
+            warning=event_res.warning,
+        )
 
-                executions.append(
-                    {
-                        "execution_id": exec_id,
-                        "timestamp": timestamp,
-                        "root_node": root_node,
-                        "failure_type": payload.get("failure_type", ""),
-                        "duration": payload.get("duration", 0),
-                    }
-                )
-    except Exception as e:
-        logger.error(f"Failed extracting tenant query dynamically smoothly: {e}")
+    async def search_clusters(self, query: QueryRequest) -> QueryResult:
+        """Search execution metadata flags natively finding cluster aggregates."""
+        # Clusters are derived natively over "attributes.cluster_id" mapped into the payload.
+        stmt = select(Event).where(Event.api_key == query.tenant_id)
 
-    return executions
+        if query.filters.cluster_id:
+            stmt = stmt.where(
+                Event.payload.op("->>")("cluster_id") == query.filters.cluster_id
+            )
+
+        if query.time_range:
+            if query.time_range.start:
+                stmt = stmt.where(Event.timestamp >= query.time_range.start)
+            if query.time_range.end:
+                stmt = stmt.where(Event.timestamp <= query.time_range.end)
+
+        stmt = stmt.offset(query.offset)
+        results, is_partial = await self._execute_with_safeguards(stmt, query.limit)
+
+        logger.info(f"[QUERY] tenant={query.tenant_id} rows={len(results)}")
+        warning = "Partial results returned natively." if is_partial else None
+
+        # Return exact cluster trace bounds organically
+        data = [r.payload for r in results]
+        return QueryResult(
+            data=data, total=len(data), partial=is_partial, warning=warning
+        )
+
+
+query_engine = QueryEngine()
