@@ -12,10 +12,17 @@ def validate_demo(headers):
 
 
 async def verify_api_key(request: Request, api_key_from_body: str | None = None):
-    if validate_demo(request.headers):
-        request.state.tenant_id = "demo-tenant"
-        request.state.api_key = "demo-key"
-        return "demo-tenant"
+    API_KEY = os.environ.get("API_KEY")
+
+    if not API_KEY:
+        if validate_demo(request.headers):
+            request.state.tenant_id = "demo-tenant"
+            request.state.api_key = "demo-key"
+            return "demo-tenant"
+    else:
+        header_api_key = request.headers.get("X-API-Key")
+        if header_api_key == API_KEY:
+            return header_api_key
 
     key = None
 
@@ -31,9 +38,12 @@ async def verify_api_key(request: Request, api_key_from_body: str | None = None)
 
     print(f"[AUTH CHECK] extracted_key={key}")
 
-    allowed_keys = os.getenv("TEMPORALLAYR_DEV_KEYS", "dev-test-key").split(",")
-
-    if key not in allowed_keys:
-        raise HTTPException(status_code=401, detail="invalid api key")
+    if API_KEY:
+        if key != API_KEY:
+            raise HTTPException(status_code=401, detail="invalid api key")
+    else:
+        allowed_keys = os.getenv("TEMPORALLAYR_DEV_KEYS", "dev-test-key").split(",")
+        if key not in allowed_keys:
+            raise HTTPException(status_code=401, detail="invalid api key")
 
     return key

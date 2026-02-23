@@ -23,13 +23,38 @@ logger = logging.getLogger("temporallayr.main")
 ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 
 
+import os
+from app.core.database import engine
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
     logger.info("Initializing TemporalLayr Server components...")
+
+    # STEP 2 — PRINT ENV DEBUG AT STARTUP
+    print("DB:", bool(os.getenv("DATABASE_URL")))
+    print("API:", bool(os.getenv("API_KEY")))
+    print("PORT:", os.getenv("PORT", "8000"))
+
     print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
     print("Query API ready")
     print("Stats API ready")
+
+    # STEP 3 — FORCE DATABASE CONNECT AT BOOT
+    try:
+        if not engine:
+            logger.error("Engine failed configuration mappings natively!")
+            sys.exit(1)
+        async with engine.begin() as conn:
+            # Just test the connection without doing anything
+            pass
+        logger.info("Database strictly connected on boot successfully.")
+    except Exception as e:
+        logger.error(
+            f"FATAL: Database connection failed during startup initialization: {e}"
+        )
+        sys.exit(1)
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
     await ingestion_service.start()
@@ -115,3 +140,10 @@ async def startup():
     print("TemporalLayr server started with demo tenant enabled")
     for route in app.routes:
         print(route.path)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

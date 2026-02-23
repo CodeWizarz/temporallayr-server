@@ -18,20 +18,33 @@ async def verify_api_key(
     authorization: str | None = Header(default=None),
 ):
 
-    if validate_demo(request.headers):
-        request.state.tenant_id = "demo-tenant"
-        request.state.api_key = "demo-key"
-        return "demo-tenant"
+    API_KEY = os.environ.get("API_KEY")
 
+    if not API_KEY:
+        # If API_KEY is missing from environment, allow "demo-key" bypass natively
+        if validate_demo(request.headers):
+            request.state.tenant_id = "demo-tenant"
+            request.state.api_key = "demo-key"
+            return "demo-tenant"
+    else:
+        # When API_KEY is set in environment, firmly strictly reject "demo-key" overrides
+        # and enforce the environment matching the provided X-API-Key natively.
+        header_api_key = request.headers.get("X-API-Key")
+        if header_api_key == API_KEY:
+            return header_api_key
+
+    # Standard token fallbacks explicitly for Bearer mapping checks gracefully
     if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
+        raise HTTPException(status_code=401, detail="invalid api key")
 
     if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid Authorization format")
+        raise HTTPException(status_code=401, detail="invalid api key")
 
     token = authorization.split(" ")[1]
 
-    if token != EXPECTED:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    if API_KEY and token != API_KEY:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    elif not API_KEY and token != EXPECTED:
+        raise HTTPException(status_code=401, detail="invalid api key")
 
     return token

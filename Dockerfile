@@ -22,4 +22,4 @@ USER temporallayr
 EXPOSE 8000
 
 # Exec entrypoint invoking multithreaded fast uvicorn workers natively
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--log-level", "info"]
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4 --log-level info"
