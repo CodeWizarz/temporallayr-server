@@ -28,6 +28,30 @@ async def execute_saved_query(saved_query_id: str, tenant_id: str) -> Dict[str, 
     # We enforce tenant_id strictly replacing whatever is originally there validating isolation statically
     raw_query["tenant_id"] = tenant_id
 
+    # Time-Series aggregation bypass mapping
+    query_type = raw_query.get("type", "raw")
+    if query_type == "timeseries":
+        from datetime import datetime
+        from app.query.timeseries import aggregate_timeseries
+
+        # Parse ISO strings into timezone-aware datetimes
+        start_str = raw_query.get("start_time", "2026-01-01T00:00:00Z").replace(
+            "Z", "+00:00"
+        )
+        end_str = raw_query.get("end_time", "2026-12-31T00:00:00Z").replace(
+            "Z", "+00:00"
+        )
+
+        res = await aggregate_timeseries(
+            tenant_id=tenant_id,
+            start_time=datetime.fromisoformat(start_str),
+            end_time=datetime.fromisoformat(end_str),
+            interval_seconds=int(raw_query.get("interval_seconds", 3600)),
+            metric=raw_query.get("metric", "execution_count"),
+            filters=raw_query.get("filters", {}),
+        )
+        return res
+
     # If limit is not given natively, set safe default resolving over query blocks natively.
     if "limit" not in raw_query:
         raw_query["limit"] = 100
