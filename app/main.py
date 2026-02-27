@@ -1,7 +1,6 @@
 import logging
 import sys
 import asyncio
-import os
 from app.config import (
     DATABASE_URL,
     PORT,
@@ -172,12 +171,7 @@ async def global_exception_handler(request, exc):
     )
 
 
-@app.on_event("startup")
-async def startup():
-    print("SERVER STARTED — ROUTES LOADED")
-    print("TemporalLayr server started with demo tenant enabled")
-    for route in app.routes:
-        print(route.path)
+# Removed deprecated @app.on_event("startup") in favor of lifespan context manager
 
 
 if __name__ == "__main__":
