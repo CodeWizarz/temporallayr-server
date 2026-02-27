@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, Response
 from app.api.auth import verify_api_key
 
 from app.models.ingestion import IngestionPayload
@@ -20,9 +20,19 @@ def get_ingestion_service() -> IngestionService:
 @router.post("/ingest")
 async def ingest(
     request: Request,
+    response: Response,
     payload: IngestionPayload,
     service: IngestionService = Depends(get_ingestion_service),
 ):
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {
+            "status": "accepted",
+            "ingested": len(payload.events),
+            "message": "Database disconnected. Events dropped.",
+        }
     """
     Ingest arrays of execution context mappings parsing nested traces.
     Accepts auth via Authorization: Bearer <key> header OR body api_key field.

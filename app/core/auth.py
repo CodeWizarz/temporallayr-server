@@ -32,14 +32,18 @@ async def verify_api_key(
 
     if not API_KEY:
         # If API_KEY is missing from environment, allow "demo-key" bypass natively
-        if validate_demo(request.headers):
-            request.state.tenant_id = TEMPORALLAYR_DEMO_TENANT
-            request.state.api_key = TEMPORALLAYR_DEMO_API_KEY
-            return TEMPORALLAYR_DEMO_TENANT
+        logger.warning(
+            "API_KEY is not configured. Running in development mode allowing fallback authentication."
+        )
+        request.state.tenant_id = header_tenant_id or TEMPORALLAYR_DEMO_TENANT
+        request.state.api_key = header_api_key or TEMPORALLAYR_DEMO_API_KEY
+        return request.state.tenant_id
     else:
         # When API_KEY is set in environment, firmly strictly reject "demo-key" overrides
         # and enforce the environment matching the provided X-API-Key natively.
         if header_api_key == API_KEY:
+            request.state.tenant_id = header_tenant_id
+            request.state.api_key = header_api_key
             return header_api_key
 
     # Standard token fallbacks explicitly for Bearer mapping checks gracefully

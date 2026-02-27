@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
 from sqlalchemy import select, func, Float, String, and_
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -28,12 +28,21 @@ class DateTruncQueryRequest(BaseModel):
 
 @router.post("/query")
 async def time_bucket_engine(
-    payload: DateTruncQueryRequest, api_key: str = Depends(verify_api_key)
+    payload: DateTruncQueryRequest,
+    request: Request,
+    response: Response,
+    api_key: str = Depends(verify_api_key),
 ) -> List[Dict[str, Any]]:
     """
     Time Bucket Engine: executes fast `date_trunc` aggregations natively
     protecting ORM boundaries by executing raw aggregate counts gracefully!
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return []
+
     if payload.tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch gracefully forbidden!"
@@ -82,6 +91,8 @@ async def time_bucket_engine(
 
 @router.get("/stats/top-functions")
 async def get_top_functions(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(
         ..., description="Target enterprise tenant mapping extraction"
     ),
@@ -90,6 +101,12 @@ async def get_top_functions(
     """
     Top Nodes Aggregator: natively unfolds JSONB arrays exploring heaviest graphs intrinsically!
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return []
+
     if tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch securely forbidden!"
@@ -135,12 +152,20 @@ async def get_top_functions(
 
 @router.get("/stats/errors")
 async def get_error_rate(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(..., description="Target enterprise tenant mapped globally"),
     api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """
     Error Rate Indicator: captures anomaly distributions directly bypassing DB heavy load boundaries natively!
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {"total_events": 0, "error_events": 0, "error_rate": 0.0}
+
     if tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
@@ -171,6 +196,8 @@ async def get_error_rate(
 
 @router.get("/stats/durations")
 async def get_durations(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(..., description="Target enterprise tenant mapped globally"),
     api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
@@ -178,6 +205,12 @@ async def get_durations(
     Latency & Duration Extraction: calculates accurate P95 percentiles
     dynamically in Postgres by parsing node metadata outputs natively!
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {"avg_duration_ms": 0.0, "p95_duration_ms": 0.0, "max_duration_ms": 0.0}
+
     if tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
@@ -245,6 +278,8 @@ async def get_durations(
 
 @router.get("/overview")
 async def get_overview(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(
         ..., description="Target enterprise tenant mapping globally"
     ),
@@ -254,6 +289,17 @@ async def get_overview(
     Live Data Summary Widget: Returns fast macros avoiding N+1 scaling.
     Calculates moving 1h/24h metrics mapped securely against live telemetry.
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {
+            "events_last_1h": 0,
+            "events_last_24h": 0,
+            "unique_functions": 0,
+            "last_event_timestamp": None,
+        }
+
     if tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"
@@ -310,6 +356,8 @@ async def get_overview(
 
 @router.get("/schema")
 async def get_schema(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(..., description="Target enterprise tenant schema parser"),
     api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
@@ -317,6 +365,12 @@ async def get_schema(
     Auto-Schema Detector: Scans latest N structures flattening deep JSON matrices
     producing string structural metadata for downstream dashboard queries naturally.
     """
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {"fields": []}
+
     if tenant_id != api_key:
         raise HTTPException(
             status_code=403, detail="Tenant mismatch cleanly forbidden!"

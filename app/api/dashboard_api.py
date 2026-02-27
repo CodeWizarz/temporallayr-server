@@ -3,7 +3,7 @@ import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response
 from sqlalchemy import select, func, text, desc, cast, Float, Integer
 
 from app.api.auth import verify_api_key
@@ -51,10 +51,19 @@ async def health_check():
 
 @router.post("/search", response_model=StandardDashboardResponse)
 async def search_events(
-    payload: DashboardSearchRequest, api_key: str = Depends(verify_api_key)
+    payload: DashboardSearchRequest,
+    request: Request,
+    response: Response,
+    api_key: str = Depends(verify_api_key),
 ):
     """Cursor-bound UI pagination search effectively isolating OFFSET performance drag."""
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(start_time, data=[])
+
     if payload.tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch gracefully forbidden!")
 
@@ -131,10 +140,19 @@ async def search_events(
 
 @router.post("/query", response_model=StandardDashboardResponse)
 async def query_aggregation(
-    payload: DashboardQueryRequest, api_key: str = Depends(verify_api_key)
+    payload: DashboardQueryRequest,
+    request: Request,
+    response: Response,
+    api_key: str = Depends(verify_api_key),
 ):
     """Pipeline aggregation engine seamlessly mapping UI configurations natively into PG."""
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(start_time, data=[])
+
     if payload.tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch gracefully forbidden!")
 
@@ -204,10 +222,26 @@ def _safe_wrap_sync(start_time: float, f):
 
 @router.get("/overview", response_model=StandardDashboardResponse)
 async def wrapper_overview(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(..., description="dashboard tenant"),
     api_key: str = Depends(verify_api_key),
 ):
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(
+            start_time,
+            data={
+                "events_last_1h": 0,
+                "events_last_24h": 0,
+                "unique_functions": 0,
+                "last_event_timestamp": None,
+            },
+        )
+
     if tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch!")
 
@@ -260,10 +294,18 @@ async def wrapper_overview(
 
 @router.get("/schema", response_model=StandardDashboardResponse)
 async def wrapper_schema(
+    request: Request,
+    response: Response,
     tenant_id: str = Query(..., description="dashboard tenant"),
     api_key: str = Depends(verify_api_key),
 ):
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(start_time, data={"fields": []})
+
     if tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch!")
 
@@ -307,9 +349,18 @@ async def wrapper_schema(
 
 @router.get("/stats/top-functions", response_model=StandardDashboardResponse)
 async def wrapper_top_functions(
-    tenant_id: str = Query(...), api_key: str = Depends(verify_api_key)
+    request: Request,
+    response: Response,
+    tenant_id: str = Query(...),
+    api_key: str = Depends(verify_api_key),
 ):
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(start_time, data=[])
+
     if tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch!")
 
@@ -348,9 +399,20 @@ async def wrapper_top_functions(
 
 @router.get("/stats/errors", response_model=StandardDashboardResponse)
 async def wrapper_errors(
-    tenant_id: str = Query(...), api_key: str = Depends(verify_api_key)
+    request: Request,
+    response: Response,
+    tenant_id: str = Query(...),
+    api_key: str = Depends(verify_api_key),
 ):
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(
+            start_time, data={"total_events": 0, "error_events": 0, "error_rate": 0.0}
+        )
+
     if tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch!")
 
@@ -382,9 +444,25 @@ async def wrapper_errors(
 
 @router.get("/stats/durations", response_model=StandardDashboardResponse)
 async def wrapper_durations(
-    tenant_id: str = Query(...), api_key: str = Depends(verify_api_key)
+    request: Request,
+    response: Response,
+    tenant_id: str = Query(...),
+    api_key: str = Depends(verify_api_key),
 ):
     start_time = time.perf_counter()
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return wrap_response(
+            start_time,
+            data={
+                "avg_duration_ms": 0.0,
+                "p95_duration_ms": 0.0,
+                "max_duration_ms": 0.0,
+            },
+        )
+
     if tenant_id != api_key:
         return wrap_response(start_time, error="Tenant mismatch!")
 

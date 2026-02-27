@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 from app.models.query import (
     QueryPayload,
@@ -28,6 +28,8 @@ def get_storage_service():
 
 @router.post("/telemetry", response_model=QueryResponse, status_code=200)
 async def query_telemetry_history(
+    request: Request,
+    response: Response,
     payload: QueryPayload,
     auth=Depends(verify_api_key),
     storage=Depends(get_storage_service),
@@ -39,6 +41,12 @@ async def query_telemetry_history(
     logger.info(
         f"Querying temporal traces mapping tenant={tenant_id} limit={payload.limit} bounds [{payload.from_time} -> {payload.to_time}]"
     )
+
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return QueryResponse(events=[])
 
     try:
         events = await storage.query_events(
@@ -55,6 +63,8 @@ async def query_telemetry_history(
 
 @router.post("/query", status_code=200)
 async def query_analytics(
+    request: Request,
+    response: Response,
     payload: QueryRequest,
     api_key: str = Depends(verify_api_key),
     storage=Depends(get_storage_service),
@@ -64,6 +74,12 @@ async def query_analytics(
     """
     from fastapi import HTTPException
     from app.query.service import query_events
+
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {"results": [], "count": 0}
 
     payload.tenant_id = api_key
 
@@ -110,9 +126,15 @@ async def get_executions(
 @router.post("/search")
 async def search_executions(
     request: Request,
+    response: Response,
     payload: SearchRequest,
     api_key: str = Depends(verify_api_key),
 ):
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return {"results": []}
     # Enforce strict tenant isolation by mapping ID natively from token auth
     tenant_id = api_key
     print(f"[SEARCH] tenant={tenant_id} function={payload.function_name}")
@@ -467,10 +489,17 @@ from app.query.engine import query_engine
 
 @router.post("/query/events", response_model=QueryResult)
 async def api_query_events(
+    request: Request,
+    response: Response,
     payload: MultiResourceQueryRequest,
     api_key: str = Depends(verify_api_key),
 ):
     """Scan and fetch real-time traces via dynamic JSON filtering structures."""
+    if getattr(request.app.state, "db_status", "unknown") != "connected":
+        response.headers["X-DB-Status"] = getattr(
+            request.app.state, "db_status", "unknown"
+        )
+        return QueryResult(results=[], count=0)
     payload.tenant_id = api_key
     return await query_engine.search_events(payload)
 
