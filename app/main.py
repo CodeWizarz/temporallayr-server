@@ -2,6 +2,13 @@ import logging
 import sys
 import asyncio
 import os
+from app.config import (
+    DATABASE_URL,
+    PORT,
+    API_KEY,
+    TEMPORALLAYR_DEMO_API_KEY,
+    TEMPORALLAYR_DEMO_TENANT,
+)
 import uvicorn
 from contextlib import asynccontextmanager, suppress
 
@@ -34,26 +41,35 @@ logger = logging.getLogger("temporallayr.main")
 ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 
 
-async def _probe_database_with_retry(database_url: str) -> None:
-    """Attempt DB connectivity in the background so app startup remains fast."""
+async def _probe_database_with_retry(app: FastAPI, database_url: str) -> None:
+    """Attempt DB connectivity in the background without crashing the server."""
     _asyncpg_url = database_url.replace("postgresql+asyncpg", "postgresql")
-    for i in range(10):
+
+    attempt = 1
+    max_sleep = 60
+
+    app.state.db_status = "connecting"
+
+    while True:
         conn = None
         try:
             conn = await asyncpg.connect(_asyncpg_url, timeout=5)
             logger.info("Database strictly connected on boot successfully.")
             print("Database connected")
+            app.state.db_status = "connected"
             return
         except Exception as e:
-            print("DB not ready, retrying...", e)
-            logger.warning(f"DB probe attempt {i + 1}/10 failed: {e}")
-            await asyncio.sleep(3)
+            app.state.db_status = "disconnected"
+            sleep_time = min(2**attempt, max_sleep)
+            print(f"DB not ready, retrying in {sleep_time}s...", e)
+            logger.warning(
+                f"DB probe attempt {attempt} failed: {e}. Retrying in {sleep_time}s"
+            )
+            await asyncio.sleep(sleep_time)
+            attempt += 1
         finally:
             if conn is not None:
                 await conn.close()
-
-    print("Database unavailable — continuing without crash")
-    logger.warning("Database unavailable after 10 attempts — server continues.")
 
 
 @asynccontextmanager
@@ -62,22 +78,23 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing TemporalLayr Server components...")
 
     # Print ENV debug at startup
-    print("DB:", bool(os.getenv("DATABASE_URL")))
-    print("API:", bool(os.getenv("API_KEY")))
-    print("PORT:", os.getenv("PORT", "8000"))
+    print("DB:", bool(DATABASE_URL))
+    print("API:", bool(API_KEY))
+    print("PORT:", PORT)
 
     print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
     print("Query API ready")
     print("Stats API ready")
 
     # Launch DB probe in background so readiness endpoint can answer immediately.
-    _DATABASE_URL = os.getenv("DATABASE_URL")
     app.state.db_probe_task = None
-    if _DATABASE_URL:
+    app.state.db_status = "unknown"
+    if DATABASE_URL:
         app.state.db_probe_task = asyncio.create_task(
-            _probe_database_with_retry(_DATABASE_URL)
+            _probe_database_with_retry(app, DATABASE_URL)
         )
     else:
+        app.state.db_status = "not_configured"
         print("DATABASE_URL not set — skipping DB probe")
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
@@ -110,12 +127,12 @@ app.add_middleware(RequestLoggingMiddleware)
 @app.middleware("http")
 async def demo_mode_query_injector(request: Request, call_next):
     if (
-        request.headers.get("x-api-key") == "demo-key"
-        and request.headers.get("x-tenant-id") == "demo-tenant"
+        request.headers.get("x-api-key") == TEMPORALLAYR_DEMO_API_KEY
+        and request.headers.get("x-tenant-id") == TEMPORALLAYR_DEMO_TENANT
     ):
         qs = request.scope.get("query_string", b"").decode()
         if "tenant_id=" not in qs:
-            new_qs = qs + ("&" if qs else "") + "tenant_id=demo-tenant"
+            new_qs = qs + ("&" if qs else "") + f"tenant_id={TEMPORALLAYR_DEMO_TENANT}"
             request.scope["query_string"] = new_qs.encode()
     return await call_next(request)
 
@@ -164,5 +181,4 @@ async def startup():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=PORT, reload=True)

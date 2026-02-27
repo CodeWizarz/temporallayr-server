@@ -1,5 +1,4 @@
-import os
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 router = APIRouter(tags=["Monitoring"])
 
@@ -11,13 +10,8 @@ async def health_options():
 
 
 @router.get("/health")
-async def health_check():
+async def health_check(request: Request):
     """Liveness probe reporting backend availability. Keep it lightweight to satisfy Railway LB."""
-    _DATABASE_URL = os.getenv("DATABASE_URL")
-    if not _DATABASE_URL:
-        return {"status": "ok", "db": "not configured"}
+    db_status = getattr(request.app.state, "db_status", "unknown")
 
-    # We no longer perform an explicit blocking asyncpg.connect() here.
-    # The application gracefully handles DB outages at the route level.
-    # We just need to signal to the Load Balancer that the Python process is alive.
-    return {"status": "ok", "db": "configured"}
+    return {"status": "ok", "db": db_status}

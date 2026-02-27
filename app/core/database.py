@@ -1,12 +1,15 @@
-import os
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from app.config import DATABASE_URL as RAW_DATABASE_URL
 
 logger = logging.getLogger("temporallayr.database")
 
+
 def _normalize_async_database_url(database_url: str) -> str:
     """Ensure SQLAlchemy async engine always uses the asyncpg dialect."""
+    if not database_url:
+        return ""
     if database_url.startswith("postgresql+asyncpg://"):
         return database_url
     if database_url.startswith("postgresql://"):
@@ -18,9 +21,8 @@ def _normalize_async_database_url(database_url: str) -> str:
 
 # Explicit mapping connecting downstream async batching
 DATABASE_URL = _normalize_async_database_url(
-    os.environ.get(
-        "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/temporallayr"
-    )
+    RAW_DATABASE_URL
+    or "postgresql+asyncpg://postgres:postgres@localhost:5432/temporallayr"
 )
 
 try:
@@ -30,6 +32,7 @@ try:
         max_overflow=10,
         pool_timeout=30,
         pool_recycle=1800,
+        pool_pre_ping=True,
         echo=False,
     )
     async_session_maker = async_sessionmaker(
@@ -47,7 +50,7 @@ except Exception as e:
 async def get_db_session() -> AsyncSession:
     """Dependency injector yielding active sessions natively."""
     if not async_session_maker:
-        raise RuntimeError("Database engine not initialized successfully.")
+        raise Exception("Database engine not initialized successfully.")
 
     async with async_session_maker() as session:
         yield session
