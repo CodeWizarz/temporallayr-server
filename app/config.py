@@ -37,6 +37,7 @@ TEMPORALLAYR_DEMO_TENANT = os.environ.get("TEMPORALLAYR_DEMO_TENANT", "demo-tena
 logger.info("Demo tenant/keys initialized.")
 
 TEMPORALLAYR_API_KEY = os.environ.get("TEMPORALLAYR_API_KEY", "dev-temporallayr-key")
+EXPECTED = TEMPORALLAYR_API_KEY
 TEMPORALLAYR_DEV_KEYS = os.environ.get("TEMPORALLAYR_DEV_KEYS", "dev-test-key").split(
     ","
 )
