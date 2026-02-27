@@ -88,16 +88,16 @@ async def lifespan(app: FastAPI):
     # Launch DB probe in background so readiness endpoint can answer immediately.
     app.state.db_probe_task = None
     app.state.db_status = "unknown"
-    if DATABASE_URL:
-        app.state.db_probe_task = asyncio.create_task(
-            _probe_database_with_retry(app, DATABASE_URL)
-        )
-    else:
-        app.state.db_status = "not_configured"
-        print("DATABASE_URL not set — skipping DB probe")
+    # if DATABASE_URL:
+    #     app.state.db_probe_task = asyncio.create_task(
+    #         _probe_database_with_retry(app, DATABASE_URL)
+    #     )
+    # else:
+    #     app.state.db_status = "not_configured"
+    #     print("DATABASE_URL not set — skipping DB probe")
 
     # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
-    await ingestion_service.start()
+    # await ingestion_service.start()
 
     yield
 
