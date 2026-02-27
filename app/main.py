@@ -186,8 +186,15 @@ app.add_middleware(RequestLoggingMiddleware)
 
 @app.middleware("http")
 async def db_ready_middleware(request: Request, call_next):
-    # Skip db check for core observability routes
-    if request.url.path in ["/health", "/", "/favicon.ico", "/metrics", "/handshake"]:
+    # Skip db check for core observability routes and async ingestion which uses bounds
+    if request.url.path in [
+        "/health",
+        "/",
+        "/favicon.ico",
+        "/metrics",
+        "/handshake",
+        "/v1/ingest",
+    ]:
         return await call_next(request)
 
     db_status = getattr(request.app.state, "db_status", "unknown")
