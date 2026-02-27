@@ -1,11 +1,9 @@
-import os
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.event_stream import EventStream
+from app.config import EXPECTED
 
 router = APIRouter()
-
-EXPECTED_KEY = os.getenv("TEMPORALLAYR_API_KEY", "dev-temporallayr-key")
 
 
 @router.websocket("/live")
@@ -15,7 +13,7 @@ async def websocket_live_execution(
     await websocket.accept()
 
     # Authenticate token explicitly since standard HTTP headers are unavailable on initial WS handshakes reliably over browser websockets
-    if token != EXPECTED_KEY:
+    if token != EXPECTED:
         await websocket.close(code=1008, reason="Invalid API Key")
         return
 

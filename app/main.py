@@ -40,77 +40,114 @@ logger = logging.getLogger("temporallayr.main")
 ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
 
 
+class BackgroundTaskManager:
+    def __init__(self):
+        self.tasks = {}
+
+    def start_supervised(self, name: str, coro_func, *args, **kwargs):
+        async def supervisor():
+            while True:
+                try:
+                    await coro_func(*args, **kwargs)
+                    break  # If cleanly returns, stop supervising
+                except asyncio.CancelledError:
+                    logger.info(f"Task {name} cancelled cleanly.")
+                    break
+                except Exception as e:
+                    logger.error(
+                        f"Supervised task '{name}' crashed: {e}. Restarting in 5s..."
+                    )
+                    await asyncio.sleep(5)
+
+        task = asyncio.create_task(supervisor(), name=name)
+        self.tasks[name] = task
+        return task
+
+    async def stop_all(self):
+        for name, task in self.tasks.items():
+            task.cancel()
+        if self.tasks:
+            with suppress(asyncio.CancelledError):
+                await asyncio.gather(*self.tasks.values(), return_exceptions=True)
+        self.tasks.clear()
+
+
+background_task_manager = BackgroundTaskManager()
+
+
+async def _watchdog():
+    while True:
+        logger.info("I'm alive - TemporalLayr Server Watchdog")
+        await asyncio.sleep(30)
+
+
 async def _probe_database_with_retry(app: FastAPI, database_url: str) -> None:
     """Attempt DB connectivity in the background without crashing the server."""
     _asyncpg_url = database_url.replace("postgresql+asyncpg", "postgresql")
 
-    attempt = 1
-    max_sleep = 60
-
     app.state.db_status = "connecting"
 
     while True:
-        conn = None
         try:
             conn = await asyncpg.connect(_asyncpg_url, timeout=5)
-            logger.info("Database strictly connected on boot successfully.")
-            print("Database connected")
+            if app.state.db_status != "connected":
+                logger.info("Database strictly connected on boot/retry successfully.")
             app.state.db_status = "connected"
-            return
+            await conn.close()
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            break
         except Exception as e:
             app.state.db_status = "disconnected"
-            sleep_time = min(2**attempt, max_sleep)
-            print(f"DB not ready, retrying in {sleep_time}s...", e)
-            logger.warning(
-                f"DB probe attempt {attempt} failed: {e}. Retrying in {sleep_time}s"
-            )
-            await asyncio.sleep(sleep_time)
-            attempt += 1
-        finally:
-            if conn is not None:
-                await conn.close()
+            logger.warning(f"DB probe failed: {e}. Retrying in 5s...")
+            await asyncio.sleep(5)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle natively over FastAPI architectures."""
-    logger.info("Initializing TemporalLayr Server components...")
+    try:
+        logger.info("Initializing TemporalLayr Server components...")
 
-    # Print ENV debug at startup
-    print("DB:", bool(DATABASE_URL))
-    print("API:", bool(API_KEY))
-    print("PORT:", PORT)
+        # Print ENV debug at startup
+        print("DB:", bool(DATABASE_URL))
+        print("API:", bool(API_KEY))
+        print("PORT:", PORT)
 
-    print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
-    print("Query API ready")
-    print("Stats API ready")
+        print("=== TEMPORALLAYR SERVER STARTED SUCCESSFULLY ===")
+        print("Query API ready")
+        print("Stats API ready")
 
-    # Launch DB probe in background so readiness endpoint can answer immediately.
-    app.state.db_probe_task = None
-    app.state.db_status = "unknown"
-    # if DATABASE_URL:
-    #     app.state.db_probe_task = asyncio.create_task(
-    #         _probe_database_with_retry(app, DATABASE_URL)
-    #     )
-    # else:
-    #     app.state.db_status = "not_configured"
-    #     print("DATABASE_URL not set — skipping DB probe")
+        app.state.db_status = "unknown"
 
-    # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
-    # await ingestion_service.start()
+        background_task_manager.start_supervised("watchdog", _watchdog)
+
+        if DATABASE_URL:
+            background_task_manager.start_supervised(
+                "db_probe", _probe_database_with_retry, app, DATABASE_URL
+            )
+        else:
+            app.state.db_status = "not_configured"
+            print("DATABASE_URL not set — skipping DB probe")
+
+        # Bootstrap Background queues explicitly preventing dropped events during startup IO blocks
+        # ingestion_service.start() is not async, we should wrap it if we want it supervised, but since it spawns its own asyncio loop task internally, we just call it.
+        # Wait, ingestion_service.start() is async!
+        background_task_manager.start_supervised(
+            "ingestion_service", ingestion_service.start
+        )
+
+    except Exception as e:
+        logger.error(f"Critical error during startup: {e}")
 
     yield
 
-    logger.info("Tearing down TemporalLayr Server components securely...")
-
-    # Disconnect generic background instances mapping queue grace delays robustly
-    await ingestion_service.stop()
-
-    db_probe_task = getattr(app.state, "db_probe_task", None)
-    if db_probe_task and not db_probe_task.done():
-        db_probe_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await db_probe_task
+    try:
+        logger.info("Tearing down TemporalLayr Server components securely...")
+        await ingestion_service.stop()
+        await background_task_manager.stop_all()
+    except Exception as e:
+        logger.error(f"Error during teardown: {e}")
 
 
 app = FastAPI(
@@ -166,8 +203,13 @@ async def global_exception_handler(request, exc):
         f"Unhandled Server Error routing request '{request.method} {request.url}': {exc}"
     )
     return JSONResponse(
-        status_code=500,
-        content={"status": "error", "message": "Internal Server Exception."},
+        status_code=200,
+        content={
+            "ok": False,
+            "data": [],
+            "error": "Internal Server Exception (Degraded)",
+        },
+        headers={"X-Degraded-Status": "true"},
     )
 
 
