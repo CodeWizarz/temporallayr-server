@@ -22,4 +22,4 @@ USER temporallayr
 EXPOSE 8000
 
 # Exec entrypoint invoking multithreaded fast uvicorn workers natively
-CMD ["python", "run.py"]
+CMD ["python", "-u", "run.py"]
