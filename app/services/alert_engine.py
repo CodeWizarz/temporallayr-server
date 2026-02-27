@@ -1,24 +1,18 @@
 import asyncio
-import json
 import logging
-import urllib.request
-import urllib.error
 
 logger = logging.getLogger("temporallayr.alert_engine")
 
 
 async def _send_webhook(url: str, payload: dict, max_retries: int = 3):
     """Executes webhook natively with structural retries and timeouts cleanly isolating network IO."""
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
+    import httpx
 
     for attempt in range(max_retries):
         try:
-            # Shift IO to a background thread to prevent starving the async event loop structurally
-            await asyncio.to_thread(urllib.request.urlopen, req, timeout=5.0)
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
             return True
         except Exception as e:
             logger.warning(

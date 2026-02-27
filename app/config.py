@@ -27,18 +27,35 @@ PORT = int(os.environ.get("PORT", "8000"))
 logger.info(f"PORT configured: {PORT}")
 
 API_KEY = os.environ.get("API_KEY")
-if API_KEY:
-    logger.info("API_KEY is configured.")
-else:
-    logger.warning("API_KEY not configured. Local dev mode fallback enabled.")
 
 TEMPORALLAYR_DEMO_API_KEY = os.environ.get("TEMPORALLAYR_DEMO_API_KEY", "demo-key")
 TEMPORALLAYR_DEMO_TENANT = os.environ.get("TEMPORALLAYR_DEMO_TENANT", "demo-tenant")
-logger.info("Demo tenant/keys initialized.")
 
 TEMPORALLAYR_API_KEY = os.environ.get("TEMPORALLAYR_API_KEY", "dev-temporallayr-key")
 EXPECTED = TEMPORALLAYR_API_KEY
 TEMPORALLAYR_DEV_KEYS = os.environ.get("TEMPORALLAYR_DEV_KEYS", "dev-test-key").split(
     ","
 )
-logger.info(f"Loaded {len(TEMPORALLAYR_DEV_KEYS)} dev keys.")
+
+
+def log_environment_status():
+    """Logs the presence of critical environment variables without leaking secrets."""
+    logger.info("--- TEMPORALLAYR ENVIRONMENT STATUS ---")
+    vars_to_check = [
+        "DATABASE_URL",
+        "DATABASE_PUBLIC_URL",
+        "PORT",
+        "API_KEY",
+        "TEMPORALLAYR_DEMO_API_KEY",
+        "TEMPORALLAYR_DEMO_TENANT",
+        "TEMPORALLAYR_API_KEY",
+        "TEMPORALLAYR_DEV_KEYS",
+    ]
+    for var in vars_to_check:
+        val = os.environ.get(var)
+        status = "SET (Length: " + str(len(val)) + ")" if val else "NOT SET / DEFAULT"
+        logger.info(f"{var}: {status}")
+    logger.info("---------------------------------------")
+
+
+log_environment_status()

@@ -20,7 +20,7 @@ class IngestionService:
     async def start(self):
         """Start the background ingestion worker."""
         if not self._is_running:
-            self._queue = asyncio.Queue()
+            self._queue = asyncio.Queue(maxsize=10000)
             self._is_running = True
             logger.info("IngestionService background worker starting...")
             self._worker_task = asyncio.create_task(self._process_queue())
@@ -81,8 +81,14 @@ class IngestionService:
                     >= self.flush_interval
                 ):
                     if batch:
-                        await self._write_batch(batch)
-                        batch.clear()
+                        success = await self._write_batch(batch)
+                        if success:
+                            batch.clear()
+                        else:
+                            logger.warning(
+                                f"Batch write failed. Backing off for 5s and retaining {len(batch)} events."
+                            )
+                            await asyncio.sleep(5)
                     last_flush = asyncio.get_event_loop().time()
 
             except asyncio.CancelledError:
@@ -93,8 +99,9 @@ class IngestionService:
                 print(f"[FATAL] Worker exception: {e}")
                 traceback.print_exc()
                 logger.error(f"Error in background ingestion worker: {e}")
+                await asyncio.sleep(1)  # Prevent rapid spin on generic crash
 
-    async def _write_batch(self, batch: List[Dict[str, Any]]):
+    async def _write_batch(self, batch: List[Dict[str, Any]]) -> bool:
         """Write a batch of events reliably to secondary storage through structured backend routing.
         Stream publication is fire-and-forget and always fires, regardless of storage success.
         """
@@ -128,11 +135,20 @@ class IngestionService:
         logger.info(
             f"Dispatching {len(batch)} queued events into PostgreSQL storage backend natively..."
         )
-        success = await self._storage.bulk_insert_events(batch)
-        if not success:
-            logger.error(
-                "Failed persisting batch cleanly via storage backend layer boundaries. Continuing to failure detection gracefully."
+        try:
+            success = await asyncio.wait_for(
+                self._storage.bulk_insert_events(batch), timeout=10.0
             )
+            if not success:
+                logger.error(
+                    "Failed persisting batch cleanly via storage backend layer boundaries. Halting batch to preserve events."
+                )
+                return False
+        except asyncio.TimeoutError:
+            logger.error(
+                "DB bulk insert timed out after 10s. Halting batch to preserve events."
+            )
+            return False
 
         from app.stream.stream_manager import stream_manager_v2
         from app.rules.engine import rule_engine
@@ -191,6 +207,8 @@ class IngestionService:
 
             # Use ingestion arrival times parsing correctly
             ts_str = event_payload.get("_ingested_at", datetime.utcnow().isoformat())
+
+            is_incident = incident_data is not None
 
             # Unconditionally broadcast across real-time WebSockets isolated from core loops organically
             asyncio.create_task(
@@ -306,3 +324,5 @@ class IngestionService:
                         )
                 else:
                     print(f"[INCIDENT OFFLINE] {exec_id} (Fingerprint: {fingerprint})")
+
+        return True

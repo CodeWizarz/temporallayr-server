@@ -28,13 +28,45 @@ DATABASE_URL = _normalize_async_database_url(
 try:
     engine = create_async_engine(
         DATABASE_URL,
-        pool_size=20,
-        max_overflow=10,
-        pool_timeout=30,
-        pool_recycle=1800,
+        pool_size=5,
+        max_overflow=5,
+        pool_timeout=10,  # Connect timeout basically
+        pool_recycle=300,
         pool_pre_ping=True,
         echo=False,
+        connect_args={"command_timeout": 5.0},
     )
+
+    # Add structured logging for every DB query
+    import time
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def before_cursor_execute(
+        conn, cursor, statement, parameters, context, executemany
+    ):
+        conn.info.setdefault("query_start_time", []).append(time.time())
+
+    @event.listens_for(engine.sync_engine, "after_cursor_execute")
+    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        start_time = conn.info["query_start_time"].pop(-1)
+        total = time.time() - start_time
+        logger.info(
+            f"DB_QUERY SUCCESS | duration_ms={total * 1000:.2f} | query={statement[:200]}..."
+        )
+
+    @event.listens_for(engine.sync_engine, "handle_error")
+    def handle_error(context):
+        if (
+            "query_start_time" in context.connection.info
+            and context.connection.info["query_start_time"]
+        ):
+            start_time = context.connection.info["query_start_time"].pop(-1)
+            total = time.time() - start_time
+            logger.error(
+                f"DB_QUERY ERROR | duration_ms={total * 1000:.2f} | error={context.original_exception}"
+            )
+
     async_session_maker = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )

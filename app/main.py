@@ -37,7 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger("temporallayr.main")
 
 # Global singleton dependencies bindings initialized on app start boundaries
-ingestion_service = IngestionService(max_batch_size=1000, flush_interval=1.0)
+ingestion_service = IngestionService(max_batch_size=100, flush_interval=1.0)
 
 
 class BackgroundTaskManager:
@@ -76,9 +76,33 @@ background_task_manager = BackgroundTaskManager()
 
 
 async def _watchdog():
+    import os
+    import psutil
+
+    process = psutil.Process(os.getpid())
     while True:
-        logger.info("I'm alive - TemporalLayr Server Watchdog")
-        await asyncio.sleep(30)
+        mem_mb = process.memory_info().rss / 1024 / 1024
+        db_connections = "disconnected"
+        if getattr(app.state, "db_status", None) == "connected":
+            try:
+                from app.core.database import async_session_maker
+                from sqlalchemy import text
+
+                if async_session_maker:
+                    async with async_session_maker() as session:
+                        result = await session.execute(
+                            text(
+                                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
+                            )
+                        )
+                        db_connections = result.scalar()
+            except Exception as e:
+                db_connections = f"error: {e}"
+
+        logger.info(
+            f"I'm alive - Watchdog | RSS: {mem_mb:.1f}MB | DB_Conns: {db_connections}"
+        )
+        await asyncio.sleep(10)
 
 
 async def _probe_database_with_retry(app: FastAPI, database_url: str) -> None:
@@ -158,6 +182,21 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+
+
+@app.middleware("http")
+async def db_ready_middleware(request: Request, call_next):
+    # Skip db check for core observability routes
+    if request.url.path in ["/health", "/", "/favicon.ico", "/metrics", "/handshake"]:
+        return await call_next(request)
+
+    db_status = getattr(request.app.state, "db_status", "unknown")
+    if db_status != "connected":
+        return JSONResponse(
+            status_code=503,
+            content={"error": "database not ready", "status": "unavailable"},
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")
