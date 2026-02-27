@@ -60,7 +60,7 @@ def run_tests():
                 ep["url"], data=data, headers=headers, method=ep["method"]
             )
 
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 status = response.getcode()
                 body = response.read().decode("utf-8")
                 res_headers = dict(response.getheaders())
