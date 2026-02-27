@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Securely copy routing modules over explicitly mapping /app structures
-COPY ./app /app/app
+COPY . .
 
 # Drop root privileges natively mapped under dynamic users
 RUN useradd -m temporallayr

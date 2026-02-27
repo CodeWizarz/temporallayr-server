@@ -45,16 +45,16 @@ async def ingest(
     )
 
     # Auth: pass body key from parsed payload to avoid body double-read
-    api_key = await verify_api_key(request, api_key_from_body=payload.api_key)
+    tenant_id = await verify_api_key(request, api_key_from_body=payload.api_key)
 
     logger.info(
         "INGEST_RECEIVED",
         extra={
             "event_count": len(payload.events),
-            "tenant": payload.tenant_id if hasattr(payload, "tenant_id") else None,
+            "tenant": tenant_id,
         },
     )
-    print(f"[INGEST RECEIVED] events={len(payload.events)}")
+    print(f"[INGEST RECEIVED] events={len(payload.events)} tenant={tenant_id}")
 
     if not payload.events:
         return {

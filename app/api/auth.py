@@ -22,6 +22,7 @@ def validate_demo(headers):
 
 async def verify_api_key(
     request: Request,
+    api_key_from_body: str | None = None,
     api_key: str = Security(api_key_header),
     tenant_id: str = Security(tenant_header),
 ):
@@ -31,16 +32,22 @@ async def verify_api_key(
     header_api_key = request.headers.get("X-API-Key")
     header_tenant_id = request.headers.get("X-Tenant-ID")
 
+    # Use body key if header is missing (for legacy ingest support)
+    effective_api_key = header_api_key or api_key_from_body
+
     if not API_KEY:
-        if validate_demo(request.headers):
+        if (
+            validate_demo(request.headers)
+            or effective_api_key == TEMPORALLAYR_DEMO_API_KEY
+        ):
             request.state.tenant_id = TEMPORALLAYR_DEMO_TENANT
             request.state.api_key = TEMPORALLAYR_DEMO_API_KEY
             return TEMPORALLAYR_DEMO_TENANT
-        if header_api_key in TEMPORALLAYR_DEV_KEYS:
+        if effective_api_key in TEMPORALLAYR_DEV_KEYS:
             return header_tenant_id or "dev-tenant"
         raise HTTPException(status_code=401, detail="Invalid API Key (Dev Mode)")
 
-    if header_api_key == API_KEY:
+    if effective_api_key == API_KEY:
         return header_tenant_id or "default-tenant"
 
     raise HTTPException(status_code=401, detail="Invalid API Key")
